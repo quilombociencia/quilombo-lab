@@ -8,7 +8,7 @@
  * Author URI: https://quilombociencia.org
  * License: GPL v3 or later
  * Requires at least: 5.0
- * Tested up to: 6.4
+ * Tested up to: 6.6
  * Requires PHP: 7.4
  * Text Domain: quilombo-laboratorio
  * Domain Path: /languages

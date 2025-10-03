@@ -5,7 +5,7 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
 e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/spec/v2.0.0.html).
 
-## [1.1.0-beta-stable] - 2025-01-19
+## [1.1.0-beta-stable] - 2025-10-03
 
 ### ✨ Adicionado
 - **Sistema de Modais Robusto**: Implementado sistema final de modais com event delegation robusto
@@ -46,7 +46,7 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/spec
 - ✅ Design responsivo e acessível em todas as resoluções
 - ✅ Performance otimizada com event delegation robusto
 
-## [1.0.3-production] - 2025-01-23
+## [1.0.3-production] - 2025-09-23
 
 ### ✨ Adicionado
 - Sistema de auto-correção de problemas conhecidos
@@ -102,7 +102,7 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/spec
 - Verificações de permissão aprimoradas
 - Validação de integridade de banco contínua
 
-## [1.0.2-production] - 2025-01-22
+## [1.0.2-production] - 2025-09-22
 
 ### 🔧 Corrigido
 - Integração estabilizada com Plugin Gestão Coletiva
@@ -113,7 +113,7 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/spec
 - Performance geral do plugin
 - Compatibilidade com versões mais recentes do WordPress
 
-## [1.0.0-beta] - 2025-01-15
+## [1.0.0-beta] - 2025-09-15
 
 ### ✨ Inicial
 - Lançamento inicial do plugin
