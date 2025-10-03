@@ -1,0 +1,156 @@
+/**
+ * CSS para Cards de Projetos - Quilombo Laboratório
+ * Versão: 1.0.3-production
+ * Data: 2025-01-23
+ */
+
+.ql-projects-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.ql-project-card {
+    background: white;
+    border: 1px solid #c3c4c7;
+    border-radius: 4px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    height: 350px;
+    overflow: hidden;
+    transition: box-shadow 0.2s ease;
+}
+
+.ql-project-card:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.ql-project-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 15px;
+}
+
+.ql-project-header h3 {
+    margin: 0;
+    color: #1d2327;
+}
+
+.ql-project-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.ql-project-description {
+    color: #646970;
+    margin-bottom: 15px;
+    line-height: 1.5;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+}
+
+.ql-project-stats {
+    margin-top: auto;
+}
+
+.ql-stat-row {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 10px;
+}
+
+.ql-stat-row span {
+    font-size: 0.9em;
+    color: #646970;
+}
+
+.ql-project-meta {
+    margin-bottom: 15px;
+}
+
+.ql-project-actions {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #f0f0f1;
+}
+
+.ql-gc-link {
+    margin-top: 10px;
+    padding: 8px;
+    background: #f8f9fa;
+    border-radius: 3px;
+}
+
+.ql-status-badge {
+    padding: 4px 8px;
+    border-radius: 3px;
+    font-size: 0.8em;
+    font-weight: 500;
+    text-transform: capitalize;
+}
+
+.ql-status-active {
+    background: #d4edda;
+    color: #155724;
+}
+
+.ql-status-inactive {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.ql-progress-bar {
+    background: #f0f0f1;
+    border-radius: 10px;
+    height: 20px;
+    position: relative;
+    margin-top: 10px;
+}
+
+.ql-progress-fill {
+    background: #2271b1;
+    height: 100%;
+    border-radius: 10px;
+    transition: width 0.3s ease;
+}
+
+.ql-progress-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 12px;
+    font-weight: bold;
+    color: #1d2327;
+}
+
+.ql-empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: #646970;
+}
+
+.ql-empty-state h2 {
+    color: #1d2327;
+    margin-bottom: 15px;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+    .ql-projects-grid {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+    
+    .ql-project-card {
+        height: auto;
+        min-height: 300px;
+    }
+}

@@ -1,0 +1,480 @@
+/**
+ * Quilombo Laboratório - Estilos do Calendário
+ */
+
+/* ========== CONTAINER DO CALENDÁRIO ========== */
+#ql-calendar-container {
+    background: var(--ql-bg-white, #fff);
+    border-radius: var(--ql-radius, 4px);
+    box-shadow: var(--ql-shadow, 0 1px 3px rgba(0, 0, 0, 0.13));
+    padding: 20px;
+    margin: 20px 0;
+}
+
+#ql-calendar-toolbar {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--ql-border, #c3c4c7);
+    flex-wrap: wrap;
+}
+
+#ql-calendar-toolbar .button {
+    margin: 0;
+}
+
+#ql-calendar-toolbar select {
+    min-width: 150px;
+}
+
+/* ========== CALENDÁRIO PRINCIPAL ========== */
+#ql-calendar {
+    min-height: 600px;
+    background: var(--ql-bg-white, #fff);
+}
+
+/* Customizações do FullCalendar */
+.fc {
+    font-family: inherit;
+}
+
+.fc-header-toolbar {
+    margin-bottom: 20px;
+}
+
+.fc-toolbar-title {
+    color: var(--ql-text-dark, #1d2327);
+    font-size: 1.5em;
+    font-weight: 600;
+}
+
+.fc-button-primary {
+    background-color: var(--ql-primary, #2271b1) !important;
+    border-color: var(--ql-primary, #2271b1) !important;
+    color: #fff !important;
+}
+
+.fc-button-primary:hover {
+    background-color: var(--ql-secondary, #135e96) !important;
+    border-color: var(--ql-secondary, #135e96) !important;
+}
+
+.fc-button-primary:disabled {
+    background-color: var(--ql-text-light, #646970) !important;
+    border-color: var(--ql-text-light, #646970) !important;
+}
+
+.fc-col-header-cell {
+    background: var(--ql-bg-light, #f6f7f7);
+    border-color: var(--ql-border, #c3c4c7);
+    font-weight: 600;
+    color: var(--ql-text-dark, #1d2327);
+}
+
+.fc-daygrid-day {
+    background: var(--ql-bg-white, #fff);
+    border-color: var(--ql-border, #c3c4c7);
+}
+
+.fc-daygrid-day:hover {
+    background: var(--ql-bg-light, #f6f7f7);
+}
+
+.fc-day-today {
+    background: rgba(34, 113, 177, 0.1) !important;
+}
+
+.fc-daygrid-day-number {
+    color: var(--ql-text-dark, #1d2327);
+    font-weight: 500;
+}
+
+/* ========== EVENTOS ========== */
+.fc-event {
+    border-radius: 4px;
+    padding: 2px 4px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.fc-event:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.fc-event-title {
+    font-weight: 500;
+}
+
+/* Tipos de eventos */
+.fc-event[data-event-type="task"] {
+    background: linear-gradient(45deg, #007cba, #0085ba);
+    border-left: 3px solid #005177;
+}
+
+.fc-event[data-event-type="meeting"] {
+    background: linear-gradient(45deg, #8e44ad, #9b59b6);
+    border-left: 3px solid #6c3483;
+}
+
+.fc-event[data-event-type="milestone"] {
+    background: linear-gradient(45deg, #e67e22, #f39c12);
+    border-left: 3px solid #d35400;
+}
+
+.fc-event[data-event-type="deadline"] {
+    background: linear-gradient(45deg, #e74c3c, #ec7063);
+    border-left: 3px solid #c0392b;
+}
+
+.fc-event[data-event-type="workshop"] {
+    background: linear-gradient(45deg, #27ae60, #2ecc71);
+    border-left: 3px solid #1e8449;
+}
+
+/* Status de tarefas */
+.fc-event[data-status="completed"] {
+    opacity: 0.7;
+    text-decoration: line-through;
+}
+
+.fc-event[data-status="overdue"] {
+    background: linear-gradient(45deg, #e74c3c, #ec7063) !important;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
+    100% { opacity: 1; }
+}
+
+/* Prioridades */
+.fc-event[data-priority="4"] {
+    box-shadow: 0 0 0 2px #e74c3c;
+}
+
+.fc-event[data-priority="3"] {
+    box-shadow: 0 0 0 2px #f39c12;
+}
+
+/* ========== MODAL DE EVENTOS ========== */
+.ql-event-modal .ql-modal-content {
+    max-width: 500px;
+}
+
+.ql-event-details {
+    padding: 15px 0;
+}
+
+.ql-event-details h4 {
+    margin: 0 0 10px 0;
+    color: var(--ql-text-dark, #1d2327);
+    font-size: 1.2em;
+}
+
+.ql-event-meta {
+    display: grid;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.ql-event-meta-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--ql-border, #e0e0e0);
+}
+
+.ql-event-meta-item:last-child {
+    border-bottom: none;
+}
+
+.ql-event-meta-label {
+    font-weight: 600;
+    color: var(--ql-text-dark, #1d2327);
+    min-width: 120px;
+}
+
+.ql-event-meta-value {
+    color: var(--ql-text-light, #646970);
+    flex: 1;
+    text-align: right;
+}
+
+/* ========== BADGES E INDICADORES ========== */
+.ql-event-type-badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.ql-event-type-badge.type-meeting {
+    background: #e8f4fd;
+    color: #0073aa;
+}
+
+.ql-event-type-badge.type-milestone {
+    background: #fff8e1;
+    color: #f57c00;
+}
+
+.ql-event-type-badge.type-deadline {
+    background: #ffebee;
+    color: #d32f2f;
+}
+
+.ql-event-type-badge.type-workshop {
+    background: #e8f5e8;
+    color: #2e7d32;
+}
+
+.ql-event-type-badge.type-other {
+    background: #f3e5f5;
+    color: #7b1fa2;
+}
+
+.ql-priority-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 5px;
+}
+
+.ql-priority-indicator.priority-1 {
+    background: #2196f3;
+}
+
+.ql-priority-indicator.priority-2 {
+    background: #9c27b0;
+}
+
+.ql-priority-indicator.priority-3 {
+    background: #ff9800;
+}
+
+.ql-priority-indicator.priority-4 {
+    background: #f44336;
+}
+
+/* ========== FORMULÁRIO DE EVENTO ========== */
+#ql-event-form .ql-form-group {
+    margin-bottom: 15px;
+}
+
+#ql-event-form .ql-form-row {
+    display: flex;
+    gap: 15px;
+}
+
+#ql-event-form .ql-form-row .ql-form-group {
+    flex: 1;
+}
+
+#ql-event-form label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 600;
+    color: var(--ql-text-dark, #1d2327);
+}
+
+#ql-event-form input,
+#ql-event-form select,
+#ql-event-form textarea {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--ql-border, #c3c4c7);
+    border-radius: var(--ql-radius, 4px);
+    font-size: 14px;
+    transition: border-color 0.2s ease;
+}
+
+#ql-event-form input:focus,
+#ql-event-form select:focus,
+#ql-event-form textarea:focus {
+    outline: none;
+    border-color: var(--ql-primary, #2271b1);
+    box-shadow: 0 0 0 1px var(--ql-primary, #2271b1);
+}
+
+#ql-event-form input[type="color"] {
+    width: 60px;
+    height: 40px;
+    padding: 2px;
+    border-radius: var(--ql-radius, 4px);
+    cursor: pointer;
+}
+
+/* ========== LOADING E ESTADOS ========== */
+.ql-calendar-loading {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+    color: var(--ql-text-light, #646970);
+}
+
+.ql-calendar-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--ql-bg-light, #f6f7f7);
+    border-top: 3px solid var(--ql-primary, #2271b1);
+    border-radius: 50%;
+    animation: ql-calendar-spin 1s linear infinite;
+}
+
+@keyframes ql-calendar-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.ql-calendar-empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--ql-text-light, #646970);
+}
+
+.ql-calendar-empty h3 {
+    color: var(--ql-text-dark, #1d2327);
+    margin-bottom: 10px;
+}
+
+/* ========== RESPONSIVIDADE ========== */
+@media (max-width: 768px) {
+    #ql-calendar-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+    
+    #ql-calendar-toolbar .button,
+    #ql-calendar-toolbar select {
+        width: 100%;
+    }
+    
+    .fc-header-toolbar {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .fc-toolbar-chunk {
+        display: flex;
+        justify-content: center;
+        gap: 5px;
+    }
+    
+    .fc-button-group {
+        flex-wrap: wrap;
+    }
+    
+    .fc-event {
+        font-size: 11px;
+        padding: 1px 3px;
+    }
+    
+    #ql-event-form .ql-form-row {
+        flex-direction: column;
+        gap: 0;
+    }
+}
+
+@media (max-width: 480px) {
+    #ql-calendar-container {
+        padding: 15px;
+        margin: 15px 0;
+    }
+    
+    .fc-toolbar-title {
+        font-size: 1.2em;
+    }
+    
+    .fc-button {
+        padding: 6px 8px;
+        font-size: 12px;
+    }
+    
+    .ql-event-modal .ql-modal-content {
+        width: 95%;
+        margin: 10px;
+    }
+}
+
+/* ========== MELHORIAS DE ACESSIBILIDADE ========== */
+.fc-event:focus {
+    outline: 2px solid var(--ql-primary, #2271b1);
+    outline-offset: 2px;
+}
+
+.fc-button:focus {
+    outline: 2px solid var(--ql-primary, #2271b1);
+    outline-offset: 2px;
+}
+
+#ql-event-form input:focus,
+#ql-event-form select:focus,
+#ql-event-form textarea:focus {
+    outline: none;
+    border-color: var(--ql-primary, #2271b1);
+    box-shadow: 0 0 0 2px rgba(34, 113, 177, 0.2);
+}
+
+/* ========== TEMAS ALTERNATIVOS ========== */
+@media (prefers-color-scheme: dark) {
+    #ql-calendar-container {
+        background: #2c3338;
+        color: #f0f0f1;
+    }
+    
+    .fc-col-header-cell {
+        background: #3c434a;
+        color: #f0f0f1;
+    }
+    
+    .fc-daygrid-day {
+        background: #2c3338;
+        border-color: #3c434a;
+    }
+    
+    .fc-daygrid-day:hover {
+        background: #3c434a;
+    }
+    
+    .fc-daygrid-day-number {
+        color: #f0f0f1;
+    }
+}
+
+/* ========== PRINT STYLES ========== */
+@media print {
+    #ql-calendar-toolbar {
+        display: none;
+    }
+    
+    #ql-calendar-container {
+        box-shadow: none;
+        border: 1px solid #000;
+    }
+    
+    .fc-event {
+        background: #fff !important;
+        color: #000 !important;
+        border: 1px solid #000 !important;
+    }
+    
+    .fc-button {
+        display: none;
+    }
+}

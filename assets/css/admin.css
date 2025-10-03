@@ -1,0 +1,793 @@
+/**
+ * Quilombo Laboratório - Estilos Administrativos
+ */
+
+/* ========== VARIÁVEIS CSS ========== */
+:root {
+    --ql-primary: #2271b1;
+    --ql-secondary: #646970;
+    --ql-success: #00a32a;
+    --ql-warning: #dba617;
+    --ql-error: #d63638;
+    --ql-border: #c3c4c7;
+    --ql-bg-light: #f6f7f7;
+    --ql-bg-white: #ffffff;
+    --ql-text-dark: #1d2327;
+    --ql-text-light: #646970;
+    --ql-shadow: 0 1px 3px rgba(0, 0, 0, 0.13);
+    --ql-radius: 4px;
+    --ql-spacing: 20px;
+}
+
+/* ========== LAYOUT GERAL ========== */
+.ql-painel-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--ql-spacing);
+    margin-top: var(--ql-spacing);
+}
+
+.ql-stats-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    grid-column: 1 / -1;
+    margin-bottom: var(--ql-spacing);
+}
+
+.ql-card {
+    background: var(--ql-bg-white);
+    border: 1px solid var(--ql-border);
+    border-radius: var(--ql-radius);
+    padding: var(--ql-spacing);
+    box-shadow: var(--ql-shadow);
+    transition: box-shadow 0.2s ease;
+}
+
+.ql-card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.ql-card h3 {
+    margin: 0 0 10px 0;
+    color: var(--ql-text-dark);
+    font-size: 16px;
+    font-weight: 600;
+}
+
+/* ========== ESTATÍSTICAS ========== */
+.ql-stat-number {
+    font-size: 2.5em;
+    font-weight: bold;
+    color: var(--ql-primary);
+    margin: 10px 0;
+    line-height: 1;
+}
+
+.ql-stat-indicator {
+    font-size: 1.2em;
+    font-weight: bold;
+    margin: 10px 0;
+}
+
+.ql-stat-indicator.active {
+    color: var(--ql-success);
+}
+
+.ql-stat-indicator.inactive {
+    color: var(--ql-warning);
+}
+
+/* ========== KANBAN BOARD ========== */
+.ql-kanban-board {
+    display: flex;
+    gap: 15px;
+    overflow-x: auto;
+    padding: var(--ql-spacing);
+    background: var(--ql-bg-light);
+    border-radius: var(--ql-radius);
+    min-height: 600px;
+}
+
+.ql-kanban-column {
+    min-width: 300px;
+    max-width: 300px;
+    background: var(--ql-bg-white);
+    border-radius: var(--ql-radius);
+    box-shadow: var(--ql-shadow);
+    display: flex;
+    flex-direction: column;
+}
+
+.ql-column-header {
+    padding: 15px;
+    border-bottom: 1px solid var(--ql-border);
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: var(--ql-radius) var(--ql-radius) 0 0;
+}
+
+.ql-column-title {
+    font-weight: 600;
+    color: var(--ql-text-dark);
+    margin: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.ql-column-count {
+    background: var(--ql-primary);
+    color: white;
+    border-radius: 12px;
+    padding: 2px 8px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.ql-tasks-list {
+    flex: 1;
+    padding: 10px;
+    min-height: 200px;
+}
+
+.ql-kanban-task {
+    background: var(--ql-bg-white);
+    border: 1px solid var(--ql-border);
+    border-radius: var(--ql-radius);
+    padding: 12px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.ql-kanban-task:hover {
+    border-color: var(--ql-primary);
+    box-shadow: 0 2px 8px rgba(34, 113, 177, 0.15);
+    transform: translateY(-1px);
+}
+
+.ql-kanban-task.ql-dragging {
+    opacity: 0.8;
+    transform: rotate(2deg) scale(1.02);
+    z-index: 1000;
+    box-shadow: 0 8px 25px rgba(34, 113, 177, 0.25);
+    border-color: var(--ql-primary);
+}
+
+/* Placeholder para posição de drop */
+.ql-task-placeholder {
+    background: rgba(34, 113, 177, 0.1);
+    border: 2px dashed var(--ql-primary);
+    border-radius: var(--ql-radius);
+    height: 80px;
+    margin-bottom: 10px;
+    position: relative;
+    transition: all 0.2s ease;
+}
+
+.ql-task-placeholder::before {
+    content: "↓ Solte aqui";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: var(--ql-primary);
+    font-weight: 500;
+    font-size: 14px;
+}
+
+/* Efeitos na coluna durante drag */
+.ql-kanban-column.ui-sortable-hover {
+    background: rgba(34, 113, 177, 0.05);
+    border: 1px solid rgba(34, 113, 177, 0.2);
+}
+
+/* Transições suaves para todas as tarefas */
+.ql-kanban-task {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Efeito de "highlight" quando uma tarefa é movida */
+.ql-kanban-task.ql-task-moved {
+    animation: ql-task-highlight 0.6s ease-out;
+}
+
+@keyframes ql-task-highlight {
+    0% {
+        background: rgba(0, 163, 42, 0.2);
+        border-color: var(--ql-success);
+        transform: scale(1.05);
+    }
+    100% {
+        background: var(--ql-bg-white);
+        border-color: var(--ql-border);
+        transform: scale(1);
+    }
+}
+
+/* Estados das colunas durante drag */
+.ql-kanban-column.ql-column-dragging-from {
+    opacity: 0.7;
+    background: rgba(219, 166, 23, 0.05);
+}
+
+.ql-kanban-column.ql-column-dragging-to {
+    background: rgba(34, 113, 177, 0.05);
+    border: 2px solid rgba(34, 113, 177, 0.3);
+    transform: scale(1.02);
+}
+
+/* Helper visual durante drag */
+.ql-drag-helper {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: var(--ql-primary);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 500;
+    z-index: 10000;
+    box-shadow: 0 4px 12px rgba(34, 113, 177, 0.3);
+    animation: ql-helper-bounce 1s ease-in-out infinite alternate;
+}
+
+@keyframes ql-helper-bounce {
+    0% { transform: translateY(0); }
+    100% { transform: translateY(-5px); }
+}
+
+    border-radius: var(--ql-radius);
+    height: 80px;
+    margin-bottom: 10px;
+}
+
+.ql-task-title {
+    font-weight: 600;
+    color: var(--ql-text-dark);
+    margin: 0 0 5px 0;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.ql-task-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: var(--ql-text-light);
+    margin-top: 8px;
+}
+
+.ql-task-priority {
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.ql-task-priority.priority-1 { background: #e3f2fd; color: #1976d2; }
+.ql-task-priority.priority-2 { background: #f3e5f5; color: #7b1fa2; }
+.ql-task-priority.priority-3 { background: #fff3e0; color: #f57c00; }
+.ql-task-priority.priority-4 { background: #ffebee; color: #d32f2f; }
+
+.ql-task-assignee {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.ql-task-avatar {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--ql-primary);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.ql-add-task-btn {
+    margin: 10px auto;
+    padding: 0;
+    border: 2px dashed var(--ql-border);
+    background: transparent;
+    border-radius: 50%;
+    color: var(--ql-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 18px;
+    font-weight: 300;
+    text-align: center;
+    line-height: 1;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+}
+
+.ql-add-task-btn:hover {
+    border-color: var(--ql-primary);
+    border-style: solid;
+    color: var(--ql-primary);
+    background: rgba(34, 113, 177, 0.08);
+    transform: scale(1.05);
+    box-shadow: 0 2px 8px rgba(34, 113, 177, 0.2);
+}
+
+.ql-add-task-btn:focus {
+    outline: 2px solid var(--ql-primary);
+    outline-offset: 3px;
+}
+
+.ql-add-task-btn:active {
+    transform: scale(0.95);
+    box-shadow: 0 1px 3px rgba(34, 113, 177, 0.15);
+}
+
+/* Responsividade para telas menores */
+@media (max-width: 768px) {
+    .ql-add-task-btn {
+        width: 36px;
+        height: 36px;
+        font-size: 16px;
+    }
+}
+
+/* Para colunas muito estreitas */
+.ql-kanban-column {
+    min-width: 220px;
+}
+
+/* Garantir que o botão circular sempre fique centralizado */
+.ql-kanban-column .ql-add-task-btn {
+    margin: 10px auto;
+    flex-shrink: 0;
+}
+
+/* ========== MODAIS ========== */
+.ql-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 100000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+.ql-modal.ql-modal-open {
+    opacity: 1;
+    pointer-events: all;
+}
+
+.ql-modal.hidden {
+    display: none;
+}
+
+.ql-modal-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    cursor: pointer;
+}
+
+.ql-modal-content {
+    background: var(--ql-bg-white);
+    border-radius: var(--ql-radius);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    width: 90%;
+    max-width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
+    position: relative;
+    transform: scale(0.9);
+    transition: transform 0.3s ease;
+}
+
+.ql-modal.ql-modal-open .ql-modal-content {
+    transform: scale(1);
+}
+
+.ql-modal-header {
+    padding: var(--ql-spacing);
+    border-bottom: 1px solid var(--ql-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.ql-modal-title {
+    margin: 0;
+    color: var(--ql-text-dark);
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.ql-modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: var(--ql-text-light);
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+}
+
+.ql-modal-close:hover {
+    background: var(--ql-bg-light);
+    color: var(--ql-text-dark);
+}
+
+.ql-modal-body {
+    padding: var(--ql-spacing);
+}
+
+.ql-modal-footer {
+    padding: var(--ql-spacing);
+    border-top: 1px solid var(--ql-border);
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+/* ========== FORMULÁRIOS ========== */
+.ql-form-group {
+    margin-bottom: 15px;
+}
+
+.ql-form-row {
+    display: flex;
+    gap: 15px;
+}
+
+.ql-form-row .ql-form-group {
+    flex: 1;
+}
+
+.ql-form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 600;
+    color: var(--ql-text-dark);
+}
+
+.ql-form-group input,
+.ql-form-group select,
+.ql-form-group textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--ql-border);
+    border-radius: var(--ql-radius);
+    font-size: 14px;
+    transition: border-color 0.2s ease;
+}
+
+.ql-form-group input:focus,
+.ql-form-group select:focus,
+.ql-form-group textarea:focus {
+    outline: none;
+    border-color: var(--ql-primary);
+    box-shadow: 0 0 0 1px var(--ql-primary);
+}
+
+/* ========== PROJETOS ========== */
+.ql-projects-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: var(--ql-spacing);
+    margin-top: var(--ql-spacing);
+}
+
+.ql-project-card {
+    background: var(--ql-bg-white);
+    border: 1px solid var(--ql-border);
+    border-radius: var(--ql-radius);
+    padding: var(--ql-spacing);
+    transition: all 0.2s ease;
+}
+
+.ql-project-card:hover {
+    box-shadow: var(--ql-shadow);
+    transform: translateY(-2px);
+}
+
+.ql-project-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 15px;
+}
+
+.ql-project-header h3 {
+    margin: 0;
+    color: var(--ql-text-dark);
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.ql-project-content p {
+    color: var(--ql-text-light);
+    margin-bottom: 15px;
+    line-height: 1.5;
+}
+
+.ql-project-meta {
+    margin-bottom: 15px;
+}
+
+.ql-project-meta small {
+    color: var(--ql-text-light);
+    font-size: 12px;
+}
+
+.ql-progress-bar {
+    background: var(--ql-bg-light);
+    border-radius: 10px;
+    height: 20px;
+    position: relative;
+    margin-top: 10px;
+    overflow: hidden;
+}
+
+.ql-progress-fill {
+    background: linear-gradient(90deg, var(--ql-primary) 0%, #3498db 100%);
+    height: 100%;
+    border-radius: 10px;
+    transition: width 0.3s ease;
+}
+
+.ql-progress-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 12px;
+    font-weight: bold;
+    color: var(--ql-text-dark);
+}
+
+/* ========== STATUS BADGES ========== */
+.ql-status-badge {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.ql-status-active { background: #e7f3ff; color: #0073aa; }
+.ql-status-completed { background: #f0fff4; color: #00a32a; }
+.ql-status-on_hold { background: #fff2e7; color: #d63638; }
+.ql-status-archived { background: #f6f7f7; color: #646970; }
+
+/* ========== ESTADOS VAZIOS ========== */
+.ql-empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--ql-text-light);
+}
+
+.ql-empty-state h2 {
+    color: var(--ql-text-dark);
+    margin-bottom: 10px;
+}
+
+.ql-empty-state p {
+    margin-bottom: 10px;
+    line-height: 1.5;
+}
+
+/* ========== AÇÕES RÁPIDAS ========== */
+.ql-action-buttons {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.ql-action-buttons .button {
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+/* ========== NOTIFICAÇÕES LEGADAS ========== */
+.ql-plugin-loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.ql-notice {
+    margin: 20px 0;
+    padding: 15px;
+    border-radius: 4px;
+}
+
+.ql-notice.success {
+    background: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+}
+
+.ql-notice.warning {
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    color: #856404;
+}
+
+.ql-notice.error {
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+}
+
+/* ========== NOTIFICAÇÕES MODERNAS ========== */
+.ql-notification {
+    position: fixed;
+    top: 32px;
+    right: 20px;
+    background: var(--ql-bg-white);
+    border-left: 4px solid var(--ql-primary);
+    padding: 15px 20px;
+    border-radius: var(--ql-radius);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    z-index: 999999;
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+    max-width: 300px;
+}
+
+.ql-notification.ql-notification-show {
+    transform: translateX(0);
+}
+
+.ql-notification-success { border-left-color: var(--ql-success); }
+.ql-notification-warning { border-left-color: var(--ql-warning); }
+.ql-notification-error { border-left-color: var(--ql-error); }
+
+/* ========== INDICADOR DE CARREGAMENTO ========== */
+.ql-loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 999999;
+}
+
+.ql-loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--ql-bg-light);
+    border-top: 3px solid var(--ql-primary);
+    border-radius: 50%;
+    animation: ql-spin 1s linear infinite;
+}
+
+@keyframes ql-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* ========== STATUS DO SISTEMA ========== */
+.ql-status-report {
+    background: var(--ql-bg-white);
+    border: 1px solid var(--ql-border);
+    border-radius: var(--ql-radius);
+    padding: var(--ql-spacing);
+    margin-top: var(--ql-spacing);
+}
+
+.ql-status-success { color: var(--ql-success); padding: 5px 0; }
+.ql-status-warning { color: var(--ql-warning); padding: 5px 0; }
+.ql-status-error { color: var(--ql-error); padding: 5px 0; }
+
+.ql-status-summary {
+    margin-top: var(--ql-spacing);
+    padding-top: 15px;
+    border-top: 1px solid var(--ql-bg-light);
+    font-size: 16px;
+}
+
+/* ========== RESPONSIVIDADE ========== */
+@media (max-width: 1200px) {
+    .ql-kanban-board {
+        gap: 10px;
+    }
+    
+    .ql-kanban-column {
+        min-width: 280px;
+        max-width: 280px;
+    }
+}
+
+@media (max-width: 768px) {
+    .ql-painel-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .ql-stats-cards {
+        grid-template-columns: 1fr;
+    }
+    
+    .ql-form-row {
+        flex-direction: column;
+    }
+    
+    .ql-kanban-board {
+        flex-direction: column;
+        height: auto;
+    }
+    
+    .ql-kanban-column {
+        min-width: 100%;
+        max-width: 100%;
+    }
+    
+    .ql-modal-content {
+        width: 95%;
+        margin: 10px;
+    }
+    
+    .ql-action-buttons {
+        flex-direction: column;
+    }
+    
+    .ql-action-buttons .button {
+        text-align: center;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .ql-projects-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .ql-project-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .ql-modal-header {
+        padding: 15px;
+    }
+    
+    .ql-modal-body {
+        padding: 15px;
+    }
+    
+    .ql-modal-footer {
+        padding: 15px;
+        flex-direction: column;
+    }
+}

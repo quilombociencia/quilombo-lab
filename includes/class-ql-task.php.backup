@@ -1,0 +1,864 @@
+<?php
+/**
+ * Classe para gestão de tarefas
+ */
+
+if (!defined('ABSPATH')) {
+    exit;
+}
+
+class QL_Task {
+    
+    private static $instance = null;
+    private $table_name;
+    
+    // Status das tarefas
+    const STATUS_OPEN = 'open';
+    const STATUS_CLOSED = 'closed';
+    const STATUS_COMPLETED = 'completed';
+    const STATUS_IN_PROGRESS = 'in_progress';
+    
+    // Prioridades
+    const PRIORITY_LOW = 1;
+    const PRIORITY_NORMAL = 2;
+    const PRIORITY_HIGH = 3;
+    const PRIORITY_URGENT = 4;
+    
+    /**
+     * Singleton pattern
+     */
+    public static function get_instance() {
+        if (self::$instance === null) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
+    
+    /**
+     * Construtor
+     */
+    private function __construct() {
+        global $wpdb;
+        $this->table_name = $wpdb->prefix . 'ql_tasks';
+    }
+    
+    /**
+     * Criar tarefa
+     */
+    public function create($data) {
+        global $wpdb;
+        
+        // Validar dados obrigatórios
+        if (empty($data['title']) || empty($data['column_id'])) {
+            return new WP_Error('missing_data', 'Título e ID da coluna são obrigatórios');
+        }
+        
+        // Verificar limite de tarefas na coluna
+        if (class_exists('QL_Column')) {
+            $column_model = QL_Column::get_instance();
+            if (!$column_model->check_task_limit($data['column_id'])) {
+                return new WP_Error('column_limit', 'Limite de tarefas na coluna atingido');
+            }
+        }
+        
+        // Se posição não foi especificada, usar próxima disponível
+        if (!isset($data['position'])) {
+            $data['position'] = $this->get_next_position($data['column_id']);
+        }
+        
+        $task_data = [
+            'title' => sanitize_text_field($data['title']),
+            'description' => !empty($data['description']) ? wp_kses_post($data['description']) : '',
+            'column_id' => intval($data['column_id']),
+            'board_id' => intval($data['board_id']),
+            'project_id' => !empty($data['project_id']) ? intval($data['project_id']) : null,
+            'assigned_user_id' => !empty($data['assigned_user_id']) ? intval($data['assigned_user_id']) : null,
+            'creator_id' => get_current_user_id(),
+            'status' => !empty($data['status']) ? sanitize_text_field($data['status']) : self::STATUS_OPEN,
+            'priority' => !empty($data['priority']) ? intval($data['priority']) : self::PRIORITY_NORMAL,
+            'position' => intval($data['position']),
+            'color' => !empty($data['color']) ? sanitize_hex_color($data['color']) : null,
+            'score' => !empty($data['score']) ? intval($data['score']) : 0,
+            'time_estimate' => !empty($data['time_estimate']) ? intval($data['time_estimate']) : 0,
+            'time_spent' => 0,
+            'start_date' => !empty($data['start_date']) ? sanitize_text_field($data['start_date']) : null,
+            'due_date' => !empty($data['due_date']) ? sanitize_text_field($data['due_date']) : null,
+            'reference' => !empty($data['reference']) ? sanitize_text_field($data['reference']) : $this->generate_reference(),
+            'created_at' => current_time('mysql'),
+            'updated_at' => current_time('mysql')
+        ];
+        
+        $result = $wpdb->insert($this->table_name, $task_data);
+        
+        if ($result === false) {
+            return new WP_Error('db_error', 'Erro ao criar tarefa: ' . $wpdb->last_error);
+        }
+        
+        $task_id = $wpdb->insert_id;
+        
+        // Hook para extensibilidade
+        do_action('ql_task_created', $task_id, $task_data);
+        
+        return $task_id;
+    }
+    
+    /**
+     * Gerar referência única para tarefa
+     */
+    private function generate_reference() {
+        return 'TASK-' . strtoupper(wp_generate_password(8, false));
+    }
+    
+    /**
+     * Obter próxima posição disponível
+     */
+    private function get_next_position($column_id) {
+        global $wpdb;
+        
+        $max_position = $wpdb->get_var($wpdb->prepare(
+            "SELECT MAX(position) FROM {$this->table_name} WHERE column_id = %d",
+            $column_id
+        ));
+        
+        return ($max_position !== null) ? $max_position + 1 : 0;
+    }
+    
+    /**
+     * Obter tarefa por ID completa com subtarefas e atividades
+     */
+    public function get_by_id($task_id) {
+        global $wpdb;
+        
+        $task = $wpdb->get_row($wpdb->prepare(
+            "SELECT t.*, 
+                    u1.display_name as creator_name,
+                    u1.user_email as creator_email,
+                    u2.display_name as assigned_user_name,
+                    u2.user_email as assigned_user_email,
+                    u3.display_name as owner_name,
+                    c.name as column_name,
+                    c.color as column_color,
+                    b.name as board_name,
+                    p.name as project_name,
+                    parent.title as parent_task_title,
+                    parent.task_number as parent_task_number
+             FROM {$this->table_name} t
+             LEFT JOIN {$wpdb->users} u1 ON t.creator_id = u1.ID
+             LEFT JOIN {$wpdb->users} u2 ON t.assignee_id = u2.ID
+             LEFT JOIN {$wpdb->users} u3 ON t.owner_id = u3.ID
+             LEFT JOIN {$wpdb->prefix}ql_columns c ON t.column_id = c.id
+             LEFT JOIN {$wpdb->prefix}ql_boards b ON t.board_id = b.id
+             LEFT JOIN {$wpdb->prefix}ql_projects p ON t.project_id = p.id
+             LEFT JOIN {$this->table_name} parent ON t.parent_task_id = parent.id
+             WHERE t.id = %d",
+            $task_id
+        ), ARRAY_A);
+        
+        if (!$task) {
+            return null;
+        }
+        
+        // Adicionar subtarefas
+        $task['subtasks'] = $this->get_subtasks($task_id);
+        
+        // Adicionar atividades recentes
+        $task['activities'] = $this->get_task_activities($task_id, 10);
+        
+        // Adicionar anexos
+        $task['attachments'] = $this->get_task_attachments($task_id);
+        
+        return $task;
+    }
+    
+    /**
+     * Obter subtarefas de uma tarefa
+     */
+    public function get_subtasks($parent_task_id) {
+        global $wpdb;
+        
+        return $wpdb->get_results($wpdb->prepare(
+            "SELECT t.*, 
+                    u1.display_name as creator_name,
+                    u2.display_name as assigned_user_name,
+                    c.name as column_name,
+                    c.color as column_color
+             FROM {$this->table_name} t
+             LEFT JOIN {$wpdb->users} u1 ON t.creator_id = u1.ID
+             LEFT JOIN {$wpdb->users} u2 ON t.assignee_id = u2.ID
+             LEFT JOIN {$wpdb->prefix}ql_columns c ON t.column_id = c.id
+             WHERE t.parent_task_id = %d
+             ORDER BY t.position ASC, t.created_at ASC",
+            $parent_task_id
+        ), ARRAY_A);
+    }
+    
+    /**
+     * Obter atividades de uma tarefa
+     */
+    public function get_task_activities($task_id, $limit = 20) {
+        global $wpdb;
+        
+        return $wpdb->get_results($wpdb->prepare(
+            "SELECT a.*, u.display_name as user_name, u.user_email
+             FROM {$wpdb->prefix}ql_task_activities a
+             LEFT JOIN {$wpdb->users} u ON a.user_id = u.ID
+             WHERE a.task_id = %d
+             ORDER BY a.created_at DESC
+             LIMIT %d",
+            $task_id, $limit
+        ), ARRAY_A);
+    }
+    
+    /**
+     * Obter anexos de uma tarefa
+     */
+    public function get_task_attachments($task_id) {
+        global $wpdb;
+        
+        return $wpdb->get_results($wpdb->prepare(
+            "SELECT a.*, u.display_name as uploader_name
+             FROM {$wpdb->prefix}ql_attachments a
+             LEFT JOIN {$wpdb->users} u ON a.user_id = u.ID
+             WHERE a.task_id = %d
+             ORDER BY a.created_at DESC",
+            $task_id
+        ), ARRAY_A);
+    }
+    
+    /**
+     * Criar subtarefa
+     */
+    public function create_subtask($parent_task_id, $data) {
+        // Validar se tarefa pai existe
+        $parent_task = $this->get_by_id($parent_task_id);
+        if (!$parent_task) {
+            return new WP_Error('parent_not_found', 'Tarefa pai não encontrada');
+        }
+        
+        // Herdar dados da tarefa pai
+        $data['parent_task_id'] = $parent_task_id;
+        $data['project_id'] = $parent_task['project_id'];
+        $data['board_id'] = $parent_task['board_id'];
+        
+        // Se não especificou coluna, usar a mesma da tarefa pai
+        if (empty($data['column_id'])) {
+            $data['column_id'] = $parent_task['column_id'];
+        }
+        
+        // Se não especificou assignee, usar o mesmo da tarefa pai
+        if (empty($data['assignee_id']) && !empty($parent_task['assignee_id'])) {
+            $data['assignee_id'] = $parent_task['assignee_id'];
+        }
+        
+        return $this->create($data);
+    }
+    
+    /**
+     * Atualizar tarefa
+     */
+    public function update($task_id, $data) {
+        global $wpdb;
+        
+        // Verificar se tarefa existe
+        $existing_task = $this->get_by_id($task_id);
+        if (!$existing_task) {
+            return new WP_Error('task_not_found', 'Tarefa não encontrada');
+        }
+        
+        // Verificar permissões
+        if (!current_user_can('edit_posts') && $existing_task['creator_id'] != get_current_user_id()) {
+            return new WP_Error('insufficient_permissions', 'Sem permissão para editar esta tarefa');
+        }
+        
+        // Preparar dados para atualização
+        $update_data = [];
+        $old_values = [];
+        
+        $allowed_fields = [
+            'title', 'description', 'status', 'priority', 'task_type',
+            'assignee_id', 'owner_id', 'start_date', 'due_date',
+            'estimated_hours', 'actual_hours', 'story_points',
+            'estimated_cost', 'actual_cost', 'color', 'tags'
+        ];
+        
+        foreach ($allowed_fields as $field) {
+            if (isset($data[$field])) {
+                $old_values[$field] = $existing_task[$field] ?? null;
+                
+                switch ($field) {
+                    case 'title':
+                        $update_data[$field] = sanitize_text_field($data[$field]);
+                        break;
+                    case 'description':
+                        $update_data[$field] = wp_kses_post($data[$field]);
+                        break;
+                    case 'color':
+                        $update_data[$field] = sanitize_hex_color($data[$field]);
+                        break;
+                    case 'tags':
+                        $update_data[$field] = sanitize_text_field($data[$field]);
+                        break;
+                    default:
+                        $update_data[$field] = $data[$field];
+                }
+            }
+        }
+        
+        if (empty($update_data)) {
+            return new WP_Error('no_data', 'Nenhum dado para atualizar');
+        }
+        
+        $update_data['updated_at'] = current_time('mysql');
+        
+        $result = $wpdb->update(
+            $this->table_name,
+            $update_data,
+            ['id' => $task_id],
+            null,
+            ['%d']
+        );
+        
+        if ($result === false) {
+            return new WP_Error('db_error', 'Erro ao atualizar tarefa: ' . $wpdb->last_error);
+        }
+        
+        // Registrar atividades das mudanças
+        foreach ($update_data as $field => $new_value) {
+            if ($field === 'updated_at') continue;
+            
+            $old_value = $old_values[$field] ?? null;
+            if ($old_value != $new_value) {
+                $this->add_activity($task_id, 'field_change', "Campo '$field' alterado", [
+                    'field' => $field,
+                    'old_value' => $old_value,
+                    'new_value' => $new_value
+                ]);
+            }
+        }
+        
+        // Hook para extensibilidade
+        do_action('ql_task_updated', $task_id, $update_data, $old_values);
+        
+        return true;
+    }
+    
+    /**
+     * Adicionar atividade à tarefa
+     */
+    public function add_activity($task_id, $activity_type, $content, $metadata = []) {
+        global $wpdb;
+        
+        $activity_data = [
+            'task_id' => intval($task_id),
+            'user_id' => get_current_user_id(),
+            'activity_type' => sanitize_text_field($activity_type),
+            'content' => sanitize_text_field($content),
+            'metadata' => json_encode($metadata),
+            'created_at' => current_time('mysql')
+        ];
+        
+        return $wpdb->insert(
+            $wpdb->prefix . 'ql_task_activities',
+            $activity_data
+        );
+    }
+    
+    /**
+     * Adicionar comentário à tarefa
+     */
+    public function add_comment($task_id, $comment, $is_private = false) {
+        return $this->add_activity($task_id, 'comment', $comment, [
+            'is_private' => $is_private
+        ]);
+    }
+    
+    /**
+     * Mover tarefa para outra coluna
+     */
+    public function move_to_column($task_id, $column_id, $position = null) {
+        global $wpdb;
+        
+        // Verificar se coluna existe
+        $column = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}ql_columns WHERE id = %d",
+            $column_id
+        ));
+        
+        if (!$column) {
+            return new WP_Error('column_not_found', 'Coluna não encontrada');
+        }
+        
+        // Se posição não especificada, usar final da coluna
+        if ($position === null) {
+            $position = $this->get_next_position($column_id);
+        }
+        
+        $old_data = $this->get_by_id($task_id);
+        
+        $result = $wpdb->update(
+            $this->table_name,
+            [
+                'column_id' => $column_id,
+                'position' => $position,
+                'updated_at' => current_time('mysql')
+            ],
+            ['id' => $task_id],
+            ['%d', '%d', '%s'],
+            ['%d']
+        );
+        
+        if ($result !== false) {
+            // Registrar atividade
+            $this->add_activity($task_id, 'moved', "Tarefa movida para coluna '{$column->name}'", [
+                'old_column_id' => $old_data['column_id'],
+                'new_column_id' => $column_id,
+                'old_column_name' => $old_data['column_name'],
+                'new_column_name' => $column->name
+            ]);
+            
+            do_action('ql_task_moved', $task_id, $column_id, $old_data['column_id']);
+        }
+        
+        return $result !== false;
+    }
+    
+    /**
+     * Excluir tarefa
+     */
+    public function delete($task_id) {
+        global $wpdb;
+        
+        $task = $this->get_by_id($task_id);
+        if (!$task) {
+            return new WP_Error('task_not_found', 'Tarefa não encontrada');
+        }
+        
+        // Verificar permissões
+        if (!current_user_can('delete_posts') && $task['creator_id'] != get_current_user_id()) {
+            return new WP_Error('insufficient_permissions', 'Sem permissão para excluir esta tarefa');
+        }
+        
+        // Verificar se tem subtarefas
+        $subtasks = $this->get_subtasks($task_id);
+        if (!empty($subtasks)) {
+            return new WP_Error('has_subtasks', 'Não é possível excluir tarefa que possui subtarefas');
+        }
+        
+        $result = $wpdb->delete($this->table_name, ['id' => $task_id], ['%d']);
+        
+        if ($result !== false) {
+            do_action('ql_task_deleted', $task_id, $task);
+        }
+        
+        return $result !== false;
+    }
+    
+    /**
+     * Obter tarefas por coluna
+     */
+    public function get_by_column($column_id) {
+        global $wpdb;
+        
+        $tasks = $wpdb->get_results($wpdb->prepare(
+            "SELECT t.*, 
+                    u1.display_name as creator_name,
+                    u2.display_name as assigned_user_name
+             FROM {$this->table_name} t
+             LEFT JOIN {$wpdb->users} u1 ON t.creator_id = u1.ID
+             LEFT JOIN {$wpdb->users} u2 ON t.assigned_user_id = u2.ID
+             WHERE t.column_id = %d 
+             ORDER BY t.position ASC",
+            $column_id
+        ), ARRAY_A);
+        
+        // Adicionar dados resumidos para cada tarefa
+        foreach ($tasks as &$task) {
+            $task['comments_count'] = $this->get_task_comments_count($task['id']);
+            $task['attachments_count'] = $this->get_task_attachments_count($task['id']);
+            $task['subtasks_count'] = $this->get_task_subtasks_count($task['id']);
+            $task['is_overdue'] = $this->is_task_overdue($task);
+        }
+        
+        return $tasks;
+    }
+    
+    /**
+     * Obter tarefas por board
+     */
+    public function get_by_board($board_id) {
+        global $wpdb;
+        
+        $tasks = $wpdb->get_results($wpdb->prepare(
+            "SELECT t.*, 
+                    u1.display_name as creator_name,
+                    u2.display_name as assigned_user_name,
+                    c.name as column_name
+             FROM {$this->table_name} t
+             LEFT JOIN {$wpdb->users} u1 ON t.creator_id = u1.ID
+             LEFT JOIN {$wpdb->users} u2 ON t.assigned_user_id = u2.ID
+             LEFT JOIN {$wpdb->prefix}ql_columns c ON t.column_id = c.id
+             WHERE t.board_id = %d 
+             ORDER BY c.position ASC, t.position ASC",
+            $board_id
+        ), ARRAY_A);
+        
+        return $tasks;
+    }
+    
+    /**
+     * Obter tarefas do usuário
+     */
+    public function get_user_tasks($user_id = null) {
+        global $wpdb;
+        
+        if ($user_id === null) {
+            $user_id = get_current_user_id();
+        }
+        
+        $tasks = $wpdb->get_results($wpdb->prepare(
+            "SELECT t.*, 
+                    c.name as column_name,
+                    b.name as board_name,
+                    p.name as project_name
+             FROM {$this->table_name} t
+             LEFT JOIN {$wpdb->prefix}ql_columns c ON t.column_id = c.id
+             LEFT JOIN {$wpdb->prefix}ql_boards b ON t.board_id = b.id
+             LEFT JOIN {$wpdb->prefix}ql_projects p ON t.project_id = p.id
+             WHERE t.assigned_user_id = %d OR t.creator_id = %d
+             ORDER BY t.updated_at DESC",
+            $user_id, $user_id
+        ), ARRAY_A);
+        
+        // Adicionar dados adicionais
+        foreach ($tasks as &$task) {
+            $task['is_overdue'] = $this->is_task_overdue($task);
+        }
+        
+        return $tasks;
+    }
+    
+    /**
+     * Verificar se tarefa está em atraso
+     */
+    private function is_task_overdue($task) {
+        if (empty($task['due_date']) || $task['status'] === self::STATUS_COMPLETED) {
+            return false;
+        }
+        
+        return strtotime($task['due_date']) < time();
+    }
+    
+    /**
+     * Mover tarefa para outra coluna
+     */
+    public function move_to_column($task_id, $new_column_id, $new_position = null) {
+        global $wpdb;
+        
+        // Verificar se tarefa existe
+        $task = $this->get_by_id($task_id);
+        if (!$task) {
+            return new WP_Error('not_found', 'Tarefa não encontrada');
+        }
+        
+        // Verificar limite da nova coluna
+        if (class_exists('QL_Column')) {
+            $column_model = QL_Column::get_instance();
+            if (!$column_model->check_task_limit($new_column_id)) {
+                return new WP_Error('column_limit', 'Limite de tarefas na coluna de destino atingido');
+            }
+        }
+        
+        $old_column_id = $task['column_id'];
+        
+        // Se posição não especificada, usar próxima disponível
+        if ($new_position === null) {
+            $new_position = $this->get_next_position($new_column_id);
+        }
+        
+        // Atualizar tarefa
+        $result = $wpdb->update(
+            $this->table_name,
+            [
+                'column_id' => $new_column_id,
+                'position' => $new_position,
+                'updated_at' => current_time('mysql')
+            ],
+            ['id' => $task_id],
+            ['%d', '%d', '%s'],
+            ['%d']
+        );
+        
+        if ($result === false) {
+            return new WP_Error('db_error', 'Erro ao mover tarefa: ' . $wpdb->last_error);
+        }
+        
+        // Reordenar tarefas na coluna antiga
+        $this->reorder_column_tasks($old_column_id);
+        
+        // Hook para extensibilidade
+        do_action('ql_task_moved', $task_id, $old_column_id, $new_column_id);
+        
+        return true;
+    }
+    
+    /**
+     * Reordenar tarefas na coluna
+     */
+    private function reorder_column_tasks($column_id) {
+        global $wpdb;
+        
+        $tasks = $wpdb->get_results($wpdb->prepare(
+            "SELECT id FROM {$this->table_name} WHERE column_id = %d ORDER BY position ASC",
+            $column_id
+        ), ARRAY_A);
+        
+        foreach ($tasks as $index => $task) {
+            $wpdb->update(
+                $this->table_name,
+                ['position' => $index],
+                ['id' => $task['id']],
+                ['%d'],
+                ['%d']
+            );
+        }
+    }
+    
+    /**
+     * Reordenar tarefas
+     */
+    public function reorder($task_positions) {
+        global $wpdb;
+        
+        foreach ($task_positions as $task_id => $position) {
+            $wpdb->update(
+                $this->table_name,
+                ['position' => intval($position), 'updated_at' => current_time('mysql')],
+                ['id' => intval($task_id)],
+                ['%d', '%s'],
+                ['%d']
+            );
+        }
+        
+        // Hook para extensibilidade
+        do_action('ql_tasks_reordered', $task_positions);
+        
+        return true;
+    }
+    
+    /**
+     * Excluir tarefa
+     */
+    public function delete($task_id) {
+        global $wpdb;
+        
+        // Verificar se tarefa existe
+        $task = $this->get_by_id($task_id);
+        if (!$task) {
+            return new WP_Error('not_found', 'Tarefa não encontrada');
+        }
+        
+        // Excluir dados relacionados
+        $this->delete_task_related_data($task_id);
+        
+        // Excluir tarefa
+        $result = $wpdb->delete(
+            $this->table_name,
+            ['id' => $task_id],
+            ['%d']
+        );
+        
+        if ($result === false) {
+            return new WP_Error('db_error', 'Erro ao excluir tarefa: ' . $wpdb->last_error);
+        }
+        
+        // Reordenar tarefas restantes na coluna
+        $this->reorder_column_tasks($task['column_id']);
+        
+        // Hook para extensibilidade
+        do_action('ql_task_deleted', $task_id);
+        
+        return true;
+    }
+    
+    /**
+     * Excluir dados relacionados à tarefa
+     */
+    private function delete_task_related_data($task_id) {
+        global $wpdb;
+        
+        // Excluir comentários
+        $comments_table = $wpdb->prefix . 'ql_task_comments';
+        $wpdb->delete($comments_table, ['task_id' => $task_id], ['%d']);
+        
+        // Excluir anexos
+        $attachments_table = $wpdb->prefix . 'ql_task_attachments';
+        $wpdb->delete($attachments_table, ['task_id' => $task_id], ['%d']);
+        
+        // Excluir subtarefas
+        $subtasks_table = $wpdb->prefix . 'ql_subtasks';
+        $wpdb->delete($subtasks_table, ['task_id' => $task_id], ['%d']);
+        
+        // Excluir registros de tempo
+        $time_table = $wpdb->prefix . 'ql_task_time_tracking';
+        $wpdb->delete($time_table, ['task_id' => $task_id], ['%d']);
+    }
+    
+    /**
+     * Excluir tarefas por board
+     */
+    public function delete_by_board($board_id) {
+        global $wpdb;
+        
+        // Obter todas as tarefas do board
+        $tasks = $wpdb->get_col($wpdb->prepare(
+            "SELECT id FROM {$this->table_name} WHERE board_id = %d",
+            $board_id
+        ));
+        
+        // Excluir cada tarefa e seus dados relacionados
+        foreach ($tasks as $task_id) {
+            $this->delete_task_related_data($task_id);
+        }
+        
+        // Excluir todas as tarefas do board
+        $result = $wpdb->delete(
+            $this->table_name,
+            ['board_id' => $board_id],
+            ['%d']
+        );
+        
+        return $result !== false;
+    }
+    
+    /**
+     * Buscar tarefas
+     */
+    public function search($search_term, $filters = []) {
+        global $wpdb;
+        
+        $where_conditions = ["(t.title LIKE %s OR t.description LIKE %s OR t.reference LIKE %s)"];
+        $params = ["%{$search_term}%", "%{$search_term}%", "%{$search_term}%"];
+        
+        // Aplicar filtros
+        if (!empty($filters['status'])) {
+            $where_conditions[] = "t.status = %s";
+            $params[] = $filters['status'];
+        }
+        
+        if (!empty($filters['assigned_user_id'])) {
+            $where_conditions[] = "t.assigned_user_id = %d";
+            $params[] = $filters['assigned_user_id'];
+        }
+        
+        if (!empty($filters['priority'])) {
+            $where_conditions[] = "t.priority = %d";
+            $params[] = $filters['priority'];
+        }
+        
+        if (!empty($filters['board_id'])) {
+            $where_conditions[] = "t.board_id = %d";
+            $params[] = $filters['board_id'];
+        }
+        
+        if (!empty($filters['project_id'])) {
+            $where_conditions[] = "t.project_id = %d";
+            $params[] = $filters['project_id'];
+        }
+        
+        $where_clause = "WHERE " . implode(" AND ", $where_conditions);
+        
+        $sql = "SELECT t.*, 
+                       u1.display_name as creator_name,
+                       u2.display_name as assigned_user_name,
+                       c.name as column_name,
+                       b.name as board_name,
+                       p.name as project_name
+                FROM {$this->table_name} t
+                LEFT JOIN {$wpdb->users} u1 ON t.creator_id = u1.ID
+                LEFT JOIN {$wpdb->users} u2 ON t.assigned_user_id = u2.ID
+                LEFT JOIN {$wpdb->prefix}ql_columns c ON t.column_id = c.id
+                LEFT JOIN {$wpdb->prefix}ql_boards b ON t.board_id = b.id
+                LEFT JOIN {$wpdb->prefix}ql_projects p ON t.project_id = p.id
+                {$where_clause}
+                ORDER BY t.updated_at DESC";
+        
+        $tasks = $wpdb->get_results($wpdb->prepare($sql, $params), ARRAY_A);
+        
+        return $tasks;
+    }
+    
+    /**
+     * Duplicar tarefa
+     */
+    public function duplicate($task_id, $new_title = null) {
+        $original_task = $this->get_by_id($task_id);
+        
+        if (!$original_task) {
+            return new WP_Error('not_found', 'Tarefa original não encontrada');
+        }
+        
+        // Criar nova tarefa
+        $new_task_data = [
+            'title' => $new_title ?: $original_task['title'] . ' (Cópia)',
+            'description' => $original_task['description'],
+            'column_id' => $original_task['column_id'],
+            'board_id' => $original_task['board_id'],
+            'project_id' => $original_task['project_id'],
+            'assigned_user_id' => $original_task['assigned_user_id'],
+            'priority' => $original_task['priority'],
+            'color' => $original_task['color'],
+            'score' => $original_task['score'],
+            'time_estimate' => $original_task['time_estimate'],
+            'start_date' => $original_task['start_date'],
+            'due_date' => $original_task['due_date']
+        ];
+        
+        return $this->create($new_task_data);
+    }
+    
+    /**
+     * Métodos auxiliares para contagens
+     */
+    private function get_task_comments_count($task_id) {
+        global $wpdb;
+        $comments_table = $wpdb->prefix . 'ql_task_comments';
+        return intval($wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$comments_table} WHERE task_id = %d",
+            $task_id
+        )));
+    }
+    
+    private function get_task_attachments_count($task_id) {
+        global $wpdb;
+        $attachments_table = $wpdb->prefix . 'ql_task_attachments';
+        return intval($wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$attachments_table} WHERE task_id = %d",
+            $task_id
+        )));
+    }
+    
+    private function get_task_subtasks_count($task_id) {
+        global $wpdb;
+        $subtasks_table = $wpdb->prefix . 'ql_subtasks';
+        return intval($wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$subtasks_table} WHERE task_id = %d",
+            $task_id
+        )));
+    }
+    
+    private function get_task_comments($task_id) {
+        return []; // Implementar quando criar classe de comentários
+    }
+    
+    private function get_task_attachments($task_id) {
+        return []; // Implementar quando criar classe de anexos
+    }
+    
+    private function get_task_subtasks($task_id) {
+        return []; // Implementar quando criar classe de subtarefas
+    }
+    
+    private function get_task_time_tracking($task_id) {
+        return []; // Implementar quando criar classe de controle de tempo
+    }
+}
