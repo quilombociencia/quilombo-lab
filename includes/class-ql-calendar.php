@@ -444,10 +444,10 @@ class QL_Calendar {
             'nonce' => wp_create_nonce('ql_calendar_nonce'),
             'project_id' => $project_id,
             'strings' => [
-                'loading' => __('Carregando eventos...', 'quilombo-laboratorio'),
-                'new_event' => __('Novo Evento', 'quilombo-laboratorio'),
-                'edit_event' => __('Editar Evento', 'quilombo-laboratorio'),
-                'delete_confirm' => __('Tem certeza que deseja excluir este evento?', 'quilombo-laboratorio')
+                'loading' => __('Carregando eventos...', 'quilombo-lab'),
+                'new_event' => __('Novo Evento', 'quilombo-lab'),
+                'edit_event' => __('Editar Evento', 'quilombo-lab'),
+                'delete_confirm' => __('Tem certeza que deseja excluir este evento?', 'quilombo-lab')
             ]
         ]);
         
@@ -456,11 +456,11 @@ class QL_Calendar {
         <div id="ql-calendar-container">
             <div id="ql-calendar-toolbar">
                 <button type="button" id="ql-new-event-btn" class="button button-primary">
-                    <?php _e('Novo Evento', 'quilombo-laboratorio'); ?>
+                    <?php _e('Novo Evento', 'quilombo-lab'); ?>
                 </button>
                 
                 <select id="ql-calendar-filter-project">
-                    <option value=""><?php _e('Todos os projetos', 'quilombo-laboratorio'); ?></option>
+                    <option value=""><?php _e('Todos os projetos', 'quilombo-lab'); ?></option>
                     <?php
                     $projects = QL_Project::get_instance()->get_all(['status' => 'active']);
                     foreach ($projects as $project) {
@@ -472,7 +472,7 @@ class QL_Calendar {
                 </select>
                 
                 <select id="ql-calendar-filter-user">
-                    <option value=""><?php _e('Todos os usuários', 'quilombo-laboratorio'); ?></option>
+                    <option value=""><?php _e('Todos os usuários', 'quilombo-lab'); ?></option>
                     <?php
                     $users = get_users(['capability' => 'ql_view_projects']);
                     foreach ($users as $user) {
@@ -491,7 +491,7 @@ class QL_Calendar {
             <div class="ql-modal-backdrop"></div>
             <div class="ql-modal-content">
                 <div class="ql-modal-header">
-                    <h3 class="ql-modal-title"><?php _e('Novo Evento', 'quilombo-laboratorio'); ?></h3>
+                    <h3 class="ql-modal-title"><?php _e('Novo Evento', 'quilombo-lab'); ?></h3>
                     <button class="ql-modal-close">&times;</button>
                 </div>
                 <div class="ql-modal-body">
@@ -499,66 +499,66 @@ class QL_Calendar {
                         <input type="hidden" id="event-id" name="event_id">
                         
                         <div class="ql-form-group">
-                            <label for="event-title"><?php _e('Título *', 'quilombo-laboratorio'); ?></label>
+                            <label for="event-title"><?php _e('Título *', 'quilombo-lab'); ?></label>
                             <input type="text" id="event-title" name="title" required>
                         </div>
                         
                         <div class="ql-form-group">
-                            <label for="event-description"><?php _e('Descrição', 'quilombo-laboratorio'); ?></label>
+                            <label for="event-description"><?php _e('Descrição', 'quilombo-lab'); ?></label>
                             <textarea id="event-description" name="description" rows="3"></textarea>
                         </div>
                         
                         <div class="ql-form-row">
                             <div class="ql-form-group">
-                                <label for="event-type"><?php _e('Tipo', 'quilombo-laboratorio'); ?></label>
+                                <label for="event-type"><?php _e('Tipo', 'quilombo-lab'); ?></label>
                                 <select id="event-type" name="event_type">
-                                    <option value="meeting"><?php _e('Reunião', 'quilombo-laboratorio'); ?></option>
-                                    <option value="milestone"><?php _e('Marco', 'quilombo-laboratorio'); ?></option>
-                                    <option value="deadline"><?php _e('Prazo', 'quilombo-laboratorio'); ?></option>
-                                    <option value="workshop"><?php _e('Workshop', 'quilombo-laboratorio'); ?></option>
-                                    <option value="other"><?php _e('Outro', 'quilombo-laboratorio'); ?></option>
+                                    <option value="meeting"><?php _e('Reunião', 'quilombo-lab'); ?></option>
+                                    <option value="milestone"><?php _e('Marco', 'quilombo-lab'); ?></option>
+                                    <option value="deadline"><?php _e('Prazo', 'quilombo-lab'); ?></option>
+                                    <option value="workshop"><?php _e('Workshop', 'quilombo-lab'); ?></option>
+                                    <option value="other"><?php _e('Outro', 'quilombo-lab'); ?></option>
                                 </select>
                             </div>
                             
                             <div class="ql-form-group">
-                                <label for="event-color"><?php _e('Cor', 'quilombo-laboratorio'); ?></label>
+                                <label for="event-color"><?php _e('Cor', 'quilombo-lab'); ?></label>
                                 <input type="color" id="event-color" name="color" value="#007bff">
                             </div>
                         </div>
                         
                         <div class="ql-form-row">
                             <div class="ql-form-group">
-                                <label for="event-date"><?php _e('Data *', 'quilombo-laboratorio'); ?></label>
+                                <label for="event-date"><?php _e('Data *', 'quilombo-lab'); ?></label>
                                 <input type="date" id="event-date" name="event_date" required>
                             </div>
                             
                             <div class="ql-form-group">
-                                <label for="event-time"><?php _e('Horário', 'quilombo-laboratorio'); ?></label>
+                                <label for="event-time"><?php _e('Horário', 'quilombo-lab'); ?></label>
                                 <input type="time" id="event-time" name="event_time">
                             </div>
                         </div>
                         
                         <div class="ql-form-row">
                             <div class="ql-form-group">
-                                <label for="event-end-date"><?php _e('Data Final', 'quilombo-laboratorio'); ?></label>
+                                <label for="event-end-date"><?php _e('Data Final', 'quilombo-lab'); ?></label>
                                 <input type="date" id="event-end-date" name="end_date">
                             </div>
                             
                             <div class="ql-form-group">
-                                <label for="event-end-time"><?php _e('Horário Final', 'quilombo-laboratorio'); ?></label>
+                                <label for="event-end-time"><?php _e('Horário Final', 'quilombo-lab'); ?></label>
                                 <input type="time" id="event-end-time" name="end_time">
                             </div>
                         </div>
                         
                         <div class="ql-form-group">
-                            <label for="event-location"><?php _e('Local', 'quilombo-laboratorio'); ?></label>
+                            <label for="event-location"><?php _e('Local', 'quilombo-lab'); ?></label>
                             <input type="text" id="event-location" name="location">
                         </div>
                         
                         <div class="ql-form-group">
-                            <label for="event-project"><?php _e('Projeto', 'quilombo-laboratorio'); ?></label>
+                            <label for="event-project"><?php _e('Projeto', 'quilombo-lab'); ?></label>
                             <select id="event-project" name="project_id">
-                                <option value=""><?php _e('Nenhum projeto específico', 'quilombo-laboratorio'); ?></option>
+                                <option value=""><?php _e('Nenhum projeto específico', 'quilombo-lab'); ?></option>
                                 <?php foreach ($projects as $project): ?>
                                     <option value="<?php echo $project['id']; ?>">
                                         <?php echo esc_html($project['name']); ?>
@@ -569,9 +569,9 @@ class QL_Calendar {
                     </form>
                 </div>
                 <div class="ql-modal-footer">
-                    <button type="button" class="button ql-modal-close"><?php _e('Cancelar', 'quilombo-laboratorio'); ?></button>
-                    <button type="button" id="ql-delete-event-btn" class="button button-secondary hidden"><?php _e('Excluir', 'quilombo-laboratorio'); ?></button>
-                    <button type="button" id="ql-save-event-btn" class="button button-primary"><?php _e('Salvar', 'quilombo-laboratorio'); ?></button>
+                    <button type="button" class="button ql-modal-close"><?php _e('Cancelar', 'quilombo-lab'); ?></button>
+                    <button type="button" id="ql-delete-event-btn" class="button button-secondary hidden"><?php _e('Excluir', 'quilombo-lab'); ?></button>
+                    <button type="button" id="ql-save-event-btn" class="button button-primary"><?php _e('Salvar', 'quilombo-lab'); ?></button>
                 </div>
             </div>
         </div>

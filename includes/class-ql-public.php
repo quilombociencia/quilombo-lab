@@ -36,14 +36,14 @@ class QL_Public {
         
         // Adicionar rewrite rules para URLs amigáveis
         add_rewrite_rule(
-            '^laboratorio/projeto/([^/]+)/?$',
-            'index.php?pagename=laboratorio&ql_project_slug=$matches[1]',
+            '^lab/projeto/([^/]+)/?$',
+            'index.php?pagename=lab&ql_project_slug=$matches[1]',
             'top'
         );
         
         add_rewrite_rule(
-            '^laboratorio/quadro/([^/]+)/?$',
-            'index.php?pagename=laboratorio&ql_board_slug=$matches[1]',
+            '^lab/quadro/([^/]+)/?$',
+            'index.php?pagename=lab&ql_board_slug=$matches[1]',
             'top'
         );
         
@@ -61,7 +61,7 @@ class QL_Public {
     private function register_public_post_types() {
         // Post type para projetos públicos
         register_post_type('ql_public_project', [
-            'label' => __('Projetos Públicos', 'quilombo-laboratorio'),
+            'label' => __('Projetos Públicos', 'quilombo-lab'),
             'public' => true,
             'publicly_queryable' => true,
             'show_ui' => false, // Não mostrar no admin (gerenciado pelo plugin)
@@ -74,8 +74,8 @@ class QL_Public {
             'menu_position' => null,
             'supports' => ['title', 'editor', 'thumbnail', 'excerpt'],
             'labels' => [
-                'name' => __('Projetos Públicos', 'quilombo-laboratorio'),
-                'singular_name' => __('Projeto Público', 'quilombo-laboratorio')
+                'name' => __('Projetos Públicos', 'quilombo-lab'),
+                'singular_name' => __('Projeto Público', 'quilombo-lab')
             ]
         ]);
     }
@@ -106,9 +106,9 @@ class QL_Public {
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('ql_public_nonce'),
             'strings' => [
-                'loading' => __('Carregando...', 'quilombo-laboratorio'),
-                'error' => __('Erro ao carregar dados', 'quilombo-laboratorio'),
-                'no_projects' => __('Nenhum projeto encontrado', 'quilombo-laboratorio')
+                'loading' => __('Carregando...', 'quilombo-lab'),
+                'error' => __('Erro ao carregar dados', 'quilombo-lab'),
+                'no_projects' => __('Nenhum projeto encontrado', 'quilombo-lab')
             ]
         ]);
         
@@ -153,7 +153,7 @@ class QL_Public {
      */
     private function render_project_public_page($project_slug) {
         if (!class_exists('QL_Project')) {
-            return '<p class="ql-error">' . __('Funcionalidade não disponível', 'quilombo-laboratorio') . '</p>';
+            return '<p class="ql-error">' . __('Funcionalidade não disponível', 'quilombo-lab') . '</p>';
         }
         
         global $wpdb;
@@ -164,7 +164,7 @@ class QL_Public {
         ), ARRAY_A);
         
         if (!$project) {
-            return '<p class="ql-error">' . __('Projeto não encontrado ou não é público', 'quilombo-laboratorio') . '</p>';
+            return '<p class="ql-error">' . __('Projeto não encontrado ou não é público', 'quilombo-lab') . '</p>';
         }
         
         ob_start();
@@ -182,13 +182,13 @@ class QL_Public {
                 <div class="ql-project-meta">
                     <div class="ql-meta-item">
                         <i class="fas fa-calendar-alt"></i>
-                        <span><?php echo sprintf(__('Criado em %s', 'quilombo-laboratorio'), date_i18n('d/m/Y', strtotime($project['created_at']))); ?></span>
+                        <span><?php echo sprintf(__('Criado em %s', 'quilombo-lab'), date_i18n('d/m/Y', strtotime($project['created_at']))); ?></span>
                     </div>
                     
                     <?php if ($project['start_date']): ?>
                         <div class="ql-meta-item">
                             <i class="fas fa-play"></i>
-                            <span><?php echo sprintf(__('Início: %s', 'quilombo-laboratorio'), date_i18n('d/m/Y', strtotime($project['start_date']))); ?></span>
+                            <span><?php echo sprintf(__('Início: %s', 'quilombo-lab'), date_i18n('d/m/Y', strtotime($project['start_date']))); ?></span>
                         </div>
                     <?php endif; ?>
                     
@@ -205,7 +205,7 @@ class QL_Public {
             </div>
             
             <div class="ql-project-boards">
-                <h2><?php _e('Quadros do Projeto', 'quilombo-laboratorio'); ?></h2>
+                <h2><?php _e('Quadros do Projeto', 'quilombo-lab'); ?></h2>
                 <?php echo $this->render_public_boards($project['id']); ?>
             </div>
         </div>
@@ -237,22 +237,22 @@ class QL_Public {
         <div class="ql-stats-grid">
             <div class="ql-stat-card">
                 <div class="ql-stat-number"><?php echo intval($stats['total_boards']); ?></div>
-                <div class="ql-stat-label"><?php _e('Quadros', 'quilombo-laboratorio'); ?></div>
+                <div class="ql-stat-label"><?php _e('Quadros', 'quilombo-lab'); ?></div>
             </div>
             
             <div class="ql-stat-card">
                 <div class="ql-stat-number"><?php echo intval($stats['total_tasks']); ?></div>
-                <div class="ql-stat-label"><?php _e('Tarefas', 'quilombo-laboratorio'); ?></div>
+                <div class="ql-stat-label"><?php _e('Tarefas', 'quilombo-lab'); ?></div>
             </div>
             
             <div class="ql-stat-card">
                 <div class="ql-stat-number"><?php echo intval($stats['completed_tasks']); ?></div>
-                <div class="ql-stat-label"><?php _e('Concluídas', 'quilombo-laboratorio'); ?></div>
+                <div class="ql-stat-label"><?php _e('Concluídas', 'quilombo-lab'); ?></div>
             </div>
             
             <div class="ql-stat-card">
                 <div class="ql-stat-number"><?php echo intval($stats['active_tasks']); ?></div>
-                <div class="ql-stat-label"><?php _e('Em Andamento', 'quilombo-laboratorio'); ?></div>
+                <div class="ql-stat-label"><?php _e('Em Andamento', 'quilombo-lab'); ?></div>
             </div>
         </div>
         <?php
@@ -264,14 +264,14 @@ class QL_Public {
      */
     private function render_public_boards($project_id) {
         if (!class_exists('QL_Board')) {
-            return '<p class="ql-error">' . __('Funcionalidade não disponível', 'quilombo-laboratorio') . '</p>';
+            return '<p class="ql-error">' . __('Funcionalidade não disponível', 'quilombo-lab') . '</p>';
         }
         
         $board_model = QL_Board::get_instance();
         $boards = $board_model->get_by_project($project_id);
         
         if (empty($boards)) {
-            return '<p class="ql-empty">' . __('Nenhum quadro disponível', 'quilombo-laboratorio') . '</p>';
+            return '<p class="ql-empty">' . __('Nenhum quadro disponível', 'quilombo-lab') . '</p>';
         }
         
         ob_start();
@@ -289,19 +289,19 @@ class QL_Public {
                     <div class="ql-board-stats">
                         <span class="ql-stat-item">
                             <i class="fas fa-columns"></i>
-                            <?php echo count($board['columns']); ?> <?php _e('colunas', 'quilombo-laboratorio'); ?>
+                            <?php echo count($board['columns']); ?> <?php _e('colunas', 'quilombo-lab'); ?>
                         </span>
                         <span class="ql-stat-item">
                             <i class="fas fa-tasks"></i>
-                            <?php echo $board['tasks_count']; ?> <?php _e('tarefas', 'quilombo-laboratorio'); ?>
+                            <?php echo $board['tasks_count']; ?> <?php _e('tarefas', 'quilombo-lab'); ?>
                         </span>
                     </div>
                     
                     <div class="ql-board-actions">
-                        <a href="<?php echo esc_url(home_url("/laboratorio/quadro/{$board['slug']}")); ?>" 
+                        <a href="<?php echo esc_url(home_url("/lab/quadro/{$board['slug']}")); ?>" 
                            class="ql-btn ql-btn-primary">
                             <i class="fas fa-eye"></i>
-                            <?php _e('Ver Quadro', 'quilombo-laboratorio'); ?>
+                            <?php _e('Ver Quadro', 'quilombo-lab'); ?>
                         </a>
                     </div>
                 </div>
@@ -316,7 +316,7 @@ class QL_Public {
      */
     private function render_board_public_page($board_slug) {
         if (!class_exists('QL_Board')) {
-            return '<p class="ql-error">' . __('Funcionalidade não disponível', 'quilombo-laboratorio') . '</p>';
+            return '<p class="ql-error">' . __('Funcionalidade não disponível', 'quilombo-lab') . '</p>';
         }
         
         global $wpdb;
@@ -330,7 +330,7 @@ class QL_Public {
         ), ARRAY_A);
         
         if (!$board) {
-            return '<p class="ql-error">' . __('Quadro não encontrado ou não é público', 'quilombo-laboratorio') . '</p>';
+            return '<p class="ql-error">' . __('Quadro não encontrado ou não é público', 'quilombo-lab') . '</p>';
         }
         
         ob_start();
@@ -338,7 +338,7 @@ class QL_Public {
         <div class="ql-public-board">
             <div class="ql-board-header">
                 <nav class="ql-breadcrumb">
-                    <a href="<?php echo esc_url(home_url("/laboratorio/projeto/{$board['project_slug']}")); ?>">
+                    <a href="<?php echo esc_url(home_url("/lab/projeto/{$board['project_slug']}")); ?>">
                         <?php echo esc_html($board['project_name']); ?>
                     </a>
                     <span class="separator">›</span>
@@ -367,14 +367,14 @@ class QL_Public {
      */
     private function render_kanban_columns($board_id) {
         if (!class_exists('QL_Column')) {
-            return '<p class="ql-error">' . __('Funcionalidade não disponível', 'quilombo-laboratorio') . '</p>';
+            return '<p class="ql-error">' . __('Funcionalidade não disponível', 'quilombo-lab') . '</p>';
         }
         
         $column_model = QL_Column::get_instance();
         $columns = $column_model->get_by_board($board_id);
         
         if (empty($columns)) {
-            return '<p class="ql-empty">' . __('Nenhuma coluna configurada', 'quilombo-laboratorio') . '</p>';
+            return '<p class="ql-empty">' . __('Nenhuma coluna configurada', 'quilombo-lab') . '</p>';
         }
         
         ob_start();
@@ -436,10 +436,10 @@ class QL_Public {
      */
     private function get_priority_label($priority) {
         $labels = [
-            1 => __('Baixa', 'quilombo-laboratorio'),
-            2 => __('Normal', 'quilombo-laboratorio'),
-            3 => __('Alta', 'quilombo-laboratorio'),
-            4 => __('Urgente', 'quilombo-laboratorio')
+            1 => __('Baixa', 'quilombo-lab'),
+            2 => __('Normal', 'quilombo-lab'),
+            3 => __('Alta', 'quilombo-lab'),
+            4 => __('Urgente', 'quilombo-lab')
         ];
         
         return $labels[$priority] ?? $labels[2];
@@ -468,8 +468,8 @@ class QL_Public {
      */
     private function create_laboratorio_page() {
         $page_data = [
-            'post_title' => __('Laboratório de Projetos', 'quilombo-laboratorio'),
-            'post_content' => __('Esta página exibe os projetos públicos do Laboratório.', 'quilombo-laboratorio'),
+            'post_title' => __('Laboratório de Projetos', 'quilombo-lab'),
+            'post_content' => __('Esta página exibe os projetos públicos do Laboratório.', 'quilombo-lab'),
             'post_status' => 'publish',
             'post_type' => 'page',
             'post_name' => 'laboratorio'

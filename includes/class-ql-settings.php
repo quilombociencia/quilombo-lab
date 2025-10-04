@@ -32,19 +32,19 @@ class QL_Settings {
     public function add_settings_menu() {
         // Menu principal de configurações
         add_submenu_page(
-            'quilombo-laboratorio',
-            __('Configurações', 'quilombo-laboratorio'),
-            __('⚙️ Configurações', 'quilombo-laboratorio'),
+            'quilombo-lab',
+            __('Configurações', 'quilombo-lab'),
+            __('⚙️ Configurações', 'quilombo-lab'),
             'manage_options',
-            'quilombo-laboratorio-settings',
+            'quilombo-lab-settings',
             [$this, 'settings_main_page']
         );
         
         // Submenu: Configurações Gerais
         add_submenu_page(
             null, // Oculto do menu
-            __('Configurações Gerais', 'quilombo-laboratorio'),
-            __('Gerais', 'quilombo-laboratorio'),
+            __('Configurações Gerais', 'quilombo-lab'),
+            __('Gerais', 'quilombo-lab'),
             'manage_options',
             'ql-settings-general',
             [$this, 'settings_general_page']
@@ -53,8 +53,8 @@ class QL_Settings {
         // Submenu: Integrações
         add_submenu_page(
             null, // Oculto do menu
-            __('Integrações', 'quilombo-laboratorio'),
-            __('Integrações', 'quilombo-laboratorio'),
+            __('Integrações', 'quilombo-lab'),
+            __('Integrações', 'quilombo-lab'),
             'manage_options',
             'ql-settings-integrations',
             [$this, 'settings_integrations_page']
@@ -63,8 +63,8 @@ class QL_Settings {
         // Submenu: Sistema
         add_submenu_page(
             null, // Oculto do menu
-            __('Configurações do Sistema', 'quilombo-laboratorio'),
-            __('Sistema', 'quilombo-laboratorio'),
+            __('Configurações do Sistema', 'quilombo-lab'),
+            __('Sistema', 'quilombo-lab'),
             'manage_options',
             'ql-settings-system',
             [$this, 'settings_system_page']
@@ -73,8 +73,8 @@ class QL_Settings {
         // Submenu: Avançado
         add_submenu_page(
             null, // Oculto do menu
-            __('Configurações Avançadas', 'quilombo-laboratorio'),
-            __('Avançado', 'quilombo-laboratorio'),
+            __('Configurações Avançadas', 'quilombo-lab'),
+            __('Avançado', 'quilombo-lab'),
             'manage_options',
             'ql-settings-advanced',
             [$this, 'settings_advanced_page']
@@ -112,7 +112,7 @@ class QL_Settings {
     public function settings_main_page() {
         ?>
         <div class="wrap ql-settings-wrap">
-            <h1><?php _e('Configurações do Quilombo Laboratório', 'quilombo-laboratorio'); ?></h1>
+            <h1><?php _e('Configurações do Quilombo Laboratório', 'quilombo-lab'); ?></h1>
             
             <div class="ql-settings-navigation">
                 <div class="ql-settings-cards">
@@ -120,40 +120,40 @@ class QL_Settings {
                     <!-- Configurações Gerais -->
                     <div class="ql-settings-card">
                         <div class="ql-settings-card-icon">🎯</div>
-                        <h3><?php _e('Configurações Gerais', 'quilombo-laboratorio'); ?></h3>
-                        <p><?php _e('Configurações básicas do sistema, padrões de projetos e tarefas.', 'quilombo-laboratorio'); ?></p>
+                        <h3><?php _e('Configurações Gerais', 'quilombo-lab'); ?></h3>
+                        <p><?php _e('Configurações básicas do sistema, padrões de projetos e tarefas.', 'quilombo-lab'); ?></p>
                         <a href="<?php echo admin_url('admin.php?page=ql-settings-general'); ?>" class="button button-primary">
-                            <?php _e('Configurar', 'quilombo-laboratorio'); ?>
+                            <?php _e('Configurar', 'quilombo-lab'); ?>
                         </a>
                     </div>
                     
                     <!-- Integrações -->
                     <div class="ql-settings-card">
                         <div class="ql-settings-card-icon">🔗</div>
-                        <h3><?php _e('Integrações', 'quilombo-laboratorio'); ?></h3>
-                        <p><?php _e('Moodle, Gestão Coletiva, bancos de dados externos e APIs.', 'quilombo-laboratorio'); ?></p>
+                        <h3><?php _e('Integrações', 'quilombo-lab'); ?></h3>
+                        <p><?php _e('Moodle, Gestão Coletiva, bancos de dados externos e APIs.', 'quilombo-lab'); ?></p>
                         <a href="<?php echo admin_url('admin.php?page=ql-settings-integrations'); ?>" class="button button-primary">
-                            <?php _e('Configurar', 'quilombo-laboratorio'); ?>
+                            <?php _e('Configurar', 'quilombo-lab'); ?>
                         </a>
                     </div>
                     
                     <!-- Sistema -->
                     <div class="ql-settings-card">
                         <div class="ql-settings-card-icon">⚙️</div>
-                        <h3><?php _e('Sistema', 'quilombo-laboratorio'); ?></h3>
-                        <p><?php _e('Paths, uploads, permissões e configurações de ambiente.', 'quilombo-laboratorio'); ?></p>
+                        <h3><?php _e('Sistema', 'quilombo-lab'); ?></h3>
+                        <p><?php _e('Paths, uploads, permissões e configurações de ambiente.', 'quilombo-lab'); ?></p>
                         <a href="<?php echo admin_url('admin.php?page=ql-settings-system'); ?>" class="button button-primary">
-                            <?php _e('Configurar', 'quilombo-laboratorio'); ?>
+                            <?php _e('Configurar', 'quilombo-lab'); ?>
                         </a>
                     </div>
                     
                     <!-- Avançado -->
                     <div class="ql-settings-card">
                         <div class="ql-settings-card-icon">🛠️</div>
-                        <h3><?php _e('Avançado', 'quilombo-laboratorio'); ?></h3>
-                        <p><?php _e('Debug, migrações, logs e configurações técnicas avançadas.', 'quilombo-laboratorio'); ?></p>
+                        <h3><?php _e('Avançado', 'quilombo-lab'); ?></h3>
+                        <p><?php _e('Debug, migrações, logs e configurações técnicas avançadas.', 'quilombo-lab'); ?></p>
                         <a href="<?php echo admin_url('admin.php?page=ql-settings-advanced'); ?>" class="button button-primary">
-                            <?php _e('Configurar', 'quilombo-laboratorio'); ?>
+                            <?php _e('Configurar', 'quilombo-lab'); ?>
                         </a>
                     </div>
                     
@@ -161,7 +161,7 @@ class QL_Settings {
             </div>
             
             <div class="ql-settings-info">
-                <h3><?php _e('Status do Sistema', 'quilombo-laboratorio'); ?></h3>
+                <h3><?php _e('Status do Sistema', 'quilombo-lab'); ?></h3>
                 <?php $this->display_system_status(); ?>
             </div>
         </div>
@@ -221,7 +221,7 @@ class QL_Settings {
         $settings = $this->get_general_settings();
         ?>
         <div class="wrap">
-            <h1><?php _e('Configurações Gerais', 'quilombo-laboratorio'); ?></h1>
+            <h1><?php _e('Configurações Gerais', 'quilombo-lab'); ?></h1>
             
             <?php $this->render_settings_navigation('general'); ?>
             
@@ -233,24 +233,24 @@ class QL_Settings {
                     <!-- Configurações de Projeto -->
                     <tr>
                         <th colspan="2">
-                            <h3><?php _e('Configurações de Projetos', 'quilombo-laboratorio'); ?></h3>
+                            <h3><?php _e('Configurações de Projetos', 'quilombo-lab'); ?></h3>
                         </th>
                     </tr>
                     
                     <tr>
-                        <th scope="row"><?php _e('Visibilidade Padrão', 'quilombo-laboratorio'); ?></th>
+                        <th scope="row"><?php _e('Visibilidade Padrão', 'quilombo-lab'); ?></th>
                         <td>
                             <select name="default_project_visibility">
-                                <option value="private" <?php selected($settings['default_project_visibility'], 'private'); ?>><?php _e('Privado', 'quilombo-laboratorio'); ?></option>
-                                <option value="team" <?php selected($settings['default_project_visibility'], 'team'); ?>><?php _e('Equipe', 'quilombo-laboratorio'); ?></option>
-                                <option value="public" <?php selected($settings['default_project_visibility'], 'public'); ?>><?php _e('Público', 'quilombo-laboratorio'); ?></option>
+                                <option value="private" <?php selected($settings['default_project_visibility'], 'private'); ?>><?php _e('Privado', 'quilombo-lab'); ?></option>
+                                <option value="team" <?php selected($settings['default_project_visibility'], 'team'); ?>><?php _e('Equipe', 'quilombo-lab'); ?></option>
+                                <option value="public" <?php selected($settings['default_project_visibility'], 'public'); ?>><?php _e('Público', 'quilombo-lab'); ?></option>
                             </select>
-                            <p class="description"><?php _e('Visibilidade padrão para novos projetos.', 'quilombo-laboratorio'); ?></p>
+                            <p class="description"><?php _e('Visibilidade padrão para novos projetos.', 'quilombo-lab'); ?></p>
                         </td>
                     </tr>
                     
                     <tr>
-                        <th scope="row"><?php _e('Usuário Administrador Padrão', 'quilombo-laboratorio'); ?></th>
+                        <th scope="row"><?php _e('Usuário Administrador Padrão', 'quilombo-lab'); ?></th>
                         <td>
                             <?php
                             $users = get_users(['role' => 'administrator', 'number' => 50]);
@@ -262,44 +262,44 @@ class QL_Settings {
                                     </option>
                                 <?php endforeach; ?>
                             </select>
-                            <p class="description"><?php _e('Usuário usado como fallback quando o criador atual não está disponível.', 'quilombo-laboratorio'); ?></p>
+                            <p class="description"><?php _e('Usuário usado como fallback quando o criador atual não está disponível.', 'quilombo-lab'); ?></p>
                         </td>
                     </tr>
                     
                     <!-- Configurações de Tarefas -->
                     <tr>
                         <th colspan="2">
-                            <h3><?php _e('Configurações de Tarefas', 'quilombo-laboratorio'); ?></h3>
+                            <h3><?php _e('Configurações de Tarefas', 'quilombo-lab'); ?></h3>
                         </th>
                     </tr>
                     
                     <tr>
-                        <th scope="row"><?php _e('Prefixo de Numeração', 'quilombo-laboratorio'); ?></th>
+                        <th scope="row"><?php _e('Prefixo de Numeração', 'quilombo-lab'); ?></th>
                         <td>
                             <input type="text" name="task_number_prefix" value="<?php echo esc_attr($settings['task_number_prefix']); ?>" class="regular-text" maxlength="10" />
-                            <p class="description"><?php _e('Prefixo para numeração automática das tarefas (ex: QL-001, PROJ-001).', 'quilombo-laboratorio'); ?></p>
+                            <p class="description"><?php _e('Prefixo para numeração automática das tarefas (ex: QL-001, PROJ-001).', 'quilombo-lab'); ?></p>
                         </td>
                     </tr>
                     
                     <tr>
-                        <th scope="row"><?php _e('Status Padrão de Tarefas', 'quilombo-laboratorio'); ?></th>
+                        <th scope="row"><?php _e('Status Padrão de Tarefas', 'quilombo-lab'); ?></th>
                         <td>
                             <select name="default_task_status">
-                                <option value="open" <?php selected($settings['default_task_status'], 'open'); ?>><?php _e('Aberta', 'quilombo-laboratorio'); ?></option>
-                                <option value="in_progress" <?php selected($settings['default_task_status'], 'in_progress'); ?>><?php _e('Em Progresso', 'quilombo-laboratorio'); ?></option>
-                                <option value="review" <?php selected($settings['default_task_status'], 'review'); ?>><?php _e('Em Revisão', 'quilombo-laboratorio'); ?></option>
+                                <option value="open" <?php selected($settings['default_task_status'], 'open'); ?>><?php _e('Aberta', 'quilombo-lab'); ?></option>
+                                <option value="in_progress" <?php selected($settings['default_task_status'], 'in_progress'); ?>><?php _e('Em Progresso', 'quilombo-lab'); ?></option>
+                                <option value="review" <?php selected($settings['default_task_status'], 'review'); ?>><?php _e('Em Revisão', 'quilombo-lab'); ?></option>
                             </select>
                         </td>
                     </tr>
                     
                     <tr>
-                        <th scope="row"><?php _e('Prioridade Padrão', 'quilombo-laboratorio'); ?></th>
+                        <th scope="row"><?php _e('Prioridade Padrão', 'quilombo-lab'); ?></th>
                         <td>
                             <select name="default_task_priority">
-                                <option value="low" <?php selected($settings['default_task_priority'], 'low'); ?>><?php _e('Baixa', 'quilombo-laboratorio'); ?></option>
-                                <option value="normal" <?php selected($settings['default_task_priority'], 'normal'); ?>><?php _e('Normal', 'quilombo-laboratorio'); ?></option>
-                                <option value="high" <?php selected($settings['default_task_priority'], 'high'); ?>><?php _e('Alta', 'quilombo-laboratorio'); ?></option>
-                                <option value="urgent" <?php selected($settings['default_task_priority'], 'urgent'); ?>><?php _e('Urgente', 'quilombo-laboratorio'); ?></option>
+                                <option value="low" <?php selected($settings['default_task_priority'], 'low'); ?>><?php _e('Baixa', 'quilombo-lab'); ?></option>
+                                <option value="normal" <?php selected($settings['default_task_priority'], 'normal'); ?>><?php _e('Normal', 'quilombo-lab'); ?></option>
+                                <option value="high" <?php selected($settings['default_task_priority'], 'high'); ?>><?php _e('Alta', 'quilombo-lab'); ?></option>
+                                <option value="urgent" <?php selected($settings['default_task_priority'], 'urgent'); ?>><?php _e('Urgente', 'quilombo-lab'); ?></option>
                             </select>
                         </td>
                     </tr>
@@ -307,18 +307,18 @@ class QL_Settings {
                     <!-- Configurações de Board -->
                     <tr>
                         <th colspan="2">
-                            <h3><?php _e('Configurações de Quadros', 'quilombo-laboratorio'); ?></h3>
+                            <h3><?php _e('Configurações de Quadros', 'quilombo-lab'); ?></h3>
                         </th>
                     </tr>
                     
                     <tr>
-                        <th scope="row"><?php _e('Tipo de Board Padrão', 'quilombo-laboratorio'); ?></th>
+                        <th scope="row"><?php _e('Tipo de Board Padrão', 'quilombo-lab'); ?></th>
                         <td>
                             <select name="default_board_type">
-                                <option value="kanban" <?php selected($settings['default_board_type'], 'kanban'); ?>><?php _e('Kanban', 'quilombo-laboratorio'); ?></option>
-                                <option value="scrum" <?php selected($settings['default_board_type'], 'scrum'); ?>><?php _e('Scrum', 'quilombo-laboratorio'); ?></option>
-                                <option value="calendar" <?php selected($settings['default_board_type'], 'calendar'); ?>><?php _e('Calendário', 'quilombo-laboratorio'); ?></option>
-                                <option value="timeline" <?php selected($settings['default_board_type'], 'timeline'); ?>><?php _e('Timeline', 'quilombo-laboratorio'); ?></option>
+                                <option value="kanban" <?php selected($settings['default_board_type'], 'kanban'); ?>><?php _e('Kanban', 'quilombo-lab'); ?></option>
+                                <option value="scrum" <?php selected($settings['default_board_type'], 'scrum'); ?>><?php _e('Scrum', 'quilombo-lab'); ?></option>
+                                <option value="calendar" <?php selected($settings['default_board_type'], 'calendar'); ?>><?php _e('Calendário', 'quilombo-lab'); ?></option>
+                                <option value="timeline" <?php selected($settings['default_board_type'], 'timeline'); ?>><?php _e('Timeline', 'quilombo-lab'); ?></option>
                             </select>
                         </td>
                     </tr>
@@ -326,25 +326,25 @@ class QL_Settings {
                     <!-- Notificações -->
                     <tr>
                         <th colspan="2">
-                            <h3><?php _e('Notificações', 'quilombo-laboratorio'); ?></h3>
+                            <h3><?php _e('Notificações', 'quilombo-lab'); ?></h3>
                         </th>
                     </tr>
                     
                     <tr>
-                        <th scope="row"><?php _e('Habilitar Notificações', 'quilombo-laboratorio'); ?></th>
+                        <th scope="row"><?php _e('Habilitar Notificações', 'quilombo-lab'); ?></th>
                         <td>
                             <label>
                                 <input type="checkbox" name="enable_notifications" value="1" <?php checked($settings['enable_notifications'], 1); ?> />
-                                <?php _e('Ativar sistema de notificações', 'quilombo-laboratorio'); ?>
+                                <?php _e('Ativar sistema de notificações', 'quilombo-lab'); ?>
                             </label>
                         </td>
                     </tr>
                     
                     <tr>
-                        <th scope="row"><?php _e('Email de Notificações', 'quilombo-laboratorio'); ?></th>
+                        <th scope="row"><?php _e('Email de Notificações', 'quilombo-lab'); ?></th>
                         <td>
                             <input type="email" name="notification_email" value="<?php echo esc_attr($settings['notification_email']); ?>" class="regular-text" />
-                            <p class="description"><?php _e('Email usado para envio de notificações administrativas.', 'quilombo-laboratorio'); ?></p>
+                            <p class="description"><?php _e('Email usado para envio de notificações administrativas.', 'quilombo-lab'); ?></p>
                         </td>
                     </tr>
                     
@@ -367,7 +367,7 @@ class QL_Settings {
         $settings = $this->get_integration_settings();
         ?>
         <div class="wrap">
-            <h1><?php _e('Configurações de Integrações', 'quilombo-laboratorio'); ?></h1>
+            <h1><?php _e('Configurações de Integrações', 'quilombo-lab'); ?></h1>
             
             <?php $this->render_settings_navigation('integrations'); ?>
             
@@ -379,39 +379,39 @@ class QL_Settings {
                     <!-- Integração Moodle -->
                     <tr>
                         <th colspan="2">
-                            <h3><?php _e('Integração com Moodle', 'quilombo-laboratorio'); ?></h3>
+                            <h3><?php _e('Integração com Moodle', 'quilombo-lab'); ?></h3>
                         </th>
                     </tr>
                     
                     <tr>
-                        <th scope="row"><?php _e('URL do Moodle', 'quilombo-laboratorio'); ?></th>
+                        <th scope="row"><?php _e('URL do Moodle', 'quilombo-lab'); ?></th>
                         <td>
                             <input type="url" name="moodle_url" value="<?php echo esc_attr($settings['moodle_url']); ?>" class="regular-text" placeholder="https://escola.exemplo.org" />
-                            <p class="description"><?php _e('URL completa da instalação do Moodle.', 'quilombo-laboratorio'); ?></p>
+                            <p class="description"><?php _e('URL completa da instalação do Moodle.', 'quilombo-lab'); ?></p>
                         </td>
                     </tr>
                     
                     <tr>
-                        <th scope="row"><?php _e('Token da API', 'quilombo-laboratorio'); ?></th>
+                        <th scope="row"><?php _e('Token da API', 'quilombo-lab'); ?></th>
                         <td>
                             <input type="password" name="moodle_token" value="<?php echo esc_attr($settings['moodle_token']); ?>" class="regular-text" />
-                            <p class="description"><?php _e('Token de autenticação para API do Moodle.', 'quilombo-laboratorio'); ?></p>
+                            <p class="description"><?php _e('Token de autenticação para API do Moodle.', 'quilombo-lab'); ?></p>
                         </td>
                     </tr>
                     
                     <tr>
-                        <th scope="row"><?php _e('Curso Padrão (ID)', 'quilombo-laboratorio'); ?></th>
+                        <th scope="row"><?php _e('Curso Padrão (ID)', 'quilombo-lab'); ?></th>
                         <td>
                             <input type="number" name="moodle_default_course_id" value="<?php echo esc_attr($settings['moodle_default_course_id']); ?>" class="small-text" min="1" />
-                            <p class="description"><?php _e('ID do curso padrão no Moodle para projetos coletivos.', 'quilombo-laboratorio'); ?></p>
+                            <p class="description"><?php _e('ID do curso padrão no Moodle para projetos coletivos.', 'quilombo-lab'); ?></p>
                         </td>
                     </tr>
                     
                     <tr>
-                        <th scope="row"><?php _e('Testar Conexão', 'quilombo-laboratorio'); ?></th>
+                        <th scope="row"><?php _e('Testar Conexão', 'quilombo-lab'); ?></th>
                         <td>
                             <button type="button" class="button" onclick="qlTestMoodleConnection()">
-                                <?php _e('Testar Conexão com Moodle', 'quilombo-laboratorio'); ?>
+                                <?php _e('Testar Conexão com Moodle', 'quilombo-lab'); ?>
                             </button>
                             <div id="moodle-test-result"></div>
                         </td>
@@ -420,15 +420,15 @@ class QL_Settings {
                     <!-- Bancos de Dados Externos -->
                     <tr>
                         <th colspan="2">
-                            <h3><?php _e('Bancos de Dados Externos', 'quilombo-laboratorio'); ?></h3>
+                            <h3><?php _e('Bancos de Dados Externos', 'quilombo-lab'); ?></h3>
                         </th>
                     </tr>
                     
                     <tr>
-                        <th scope="row"><?php _e('Nome do Banco Moodle', 'quilombo-laboratorio'); ?></th>
+                        <th scope="row"><?php _e('Nome do Banco Moodle', 'quilombo-lab'); ?></th>
                         <td>
                             <input type="text" name="moodle_database_name" value="<?php echo esc_attr($settings['moodle_database_name']); ?>" class="regular-text" />
-                            <p class="description"><?php _e('Nome do banco de dados do Moodle (padrão: moodle_escola).', 'quilombo-laboratorio'); ?></p>
+                            <p class="description"><?php _e('Nome do banco de dados do Moodle (padrão: moodle_escola).', 'quilombo-lab'); ?></p>
                         </td>
                     </tr>
                     
@@ -436,26 +436,26 @@ class QL_Settings {
                     <!-- Integração Gestão Coletiva -->
                     <tr>
                         <th colspan="2">
-                            <h3><?php _e('Integração com Gestão Coletiva', 'quilombo-laboratorio'); ?></h3>
+                            <h3><?php _e('Integração com Gestão Coletiva', 'quilombo-lab'); ?></h3>
                         </th>
                     </tr>
                     
                     <tr>
-                        <th scope="row"><?php _e('Habilitar Integração GC', 'quilombo-laboratorio'); ?></th>
+                        <th scope="row"><?php _e('Habilitar Integração GC', 'quilombo-lab'); ?></th>
                         <td>
                             <label>
                                 <input type="checkbox" name="gc_integration_enabled" value="1" <?php checked($settings['gc_integration_enabled'], 1); ?> />
-                                <?php _e('Integrar com Plugin Gestão Coletiva', 'quilombo-laboratorio'); ?>
+                                <?php _e('Integrar com Plugin Gestão Coletiva', 'quilombo-lab'); ?>
                             </label>
                         </td>
                     </tr>
                     
                     <tr>
-                        <th scope="row"><?php _e('Auto-criar Lançamentos', 'quilombo-laboratorio'); ?></th>
+                        <th scope="row"><?php _e('Auto-criar Lançamentos', 'quilombo-lab'); ?></th>
                         <td>
                             <label>
                                 <input type="checkbox" name="auto_create_gc_expenses" value="1" <?php checked($settings['auto_create_gc_expenses'], 1); ?> />
-                                <?php _e('Criar automaticamente lançamentos financeiros para custos de tarefas', 'quilombo-laboratorio'); ?>
+                                <?php _e('Criar automaticamente lançamentos financeiros para custos de tarefas', 'quilombo-lab'); ?>
                             </label>
                         </td>
                     </tr>
@@ -509,7 +509,7 @@ class QL_Settings {
         $settings = $this->get_system_settings();
         ?>
         <div class="wrap">
-            <h1><?php _e('Configurações do Sistema', 'quilombo-laboratorio'); ?></h1>
+            <h1><?php _e('Configurações do Sistema', 'quilombo-lab'); ?></h1>
             
             <?php $this->render_settings_navigation('system'); ?>
             
@@ -521,73 +521,73 @@ class QL_Settings {
                     <!-- Configurações de Upload -->
                     <tr>
                         <th colspan="2">
-                            <h3><?php _e('Uploads e Anexos', 'quilombo-laboratorio'); ?></h3>
+                            <h3><?php _e('Uploads e Anexos', 'quilombo-lab'); ?></h3>
                         </th>
                     </tr>
                     
                     <tr>
-                        <th scope="row"><?php _e('Tamanho Máximo de Upload', 'quilombo-laboratorio'); ?></th>
+                        <th scope="row"><?php _e('Tamanho Máximo de Upload', 'quilombo-lab'); ?></th>
                         <td>
                             <input type="number" name="max_file_upload_size" value="<?php echo esc_attr($settings['max_file_upload_size']); ?>" class="small-text" min="1" max="100" /> MB
-                            <p class="description"><?php _e('Tamanho máximo permitido para upload de arquivos (em MB).', 'quilombo-laboratorio'); ?></p>
+                            <p class="description"><?php _e('Tamanho máximo permitido para upload de arquivos (em MB).', 'quilombo-lab'); ?></p>
                         </td>
                     </tr>
                     
                     <tr>
-                        <th scope="row"><?php _e('Tipos de Arquivo Permitidos', 'quilombo-laboratorio'); ?></th>
+                        <th scope="row"><?php _e('Tipos de Arquivo Permitidos', 'quilombo-lab'); ?></th>
                         <td>
                             <textarea name="allowed_file_types" rows="3" class="large-text" placeholder="jpg,jpeg,png,gif,pdf,doc,docx,txt,zip"><?php echo esc_textarea($settings['allowed_file_types']); ?></textarea>
-                            <p class="description"><?php _e('Extensões de arquivo permitidas, separadas por vírgula.', 'quilombo-laboratorio'); ?></p>
+                            <p class="description"><?php _e('Extensões de arquivo permitidas, separadas por vírgula.', 'quilombo-lab'); ?></p>
                         </td>
                     </tr>
                     
                     <tr>
-                        <th scope="row"><?php _e('Diretório de Upload', 'quilombo-laboratorio'); ?></th>
+                        <th scope="row"><?php _e('Diretório de Upload', 'quilombo-lab'); ?></th>
                         <td>
                             <input type="text" name="upload_directory" value="<?php echo esc_attr($settings['upload_directory']); ?>" class="regular-text" />
-                            <p class="description"><?php _e('Diretório personalizado para uploads (relativo ao wp-content/uploads).', 'quilombo-laboratorio'); ?></p>
+                            <p class="description"><?php _e('Diretório personalizado para uploads (relativo ao wp-content/uploads).', 'quilombo-lab'); ?></p>
                         </td>
                     </tr>
                     
                     <!-- Paths do Sistema -->
                     <tr>
                         <th colspan="2">
-                            <h3><?php _e('Paths do Sistema', 'quilombo-laboratorio'); ?></h3>
+                            <h3><?php _e('Paths do Sistema', 'quilombo-lab'); ?></h3>
                         </th>
                     </tr>
                     
                     
                     <tr>
-                        <th scope="row"><?php _e('Diretório de Logs', 'quilombo-laboratorio'); ?></th>
+                        <th scope="row"><?php _e('Diretório de Logs', 'quilombo-lab'); ?></th>
                         <td>
                             <input type="text" name="logs_directory" value="<?php echo esc_attr($settings['logs_directory']); ?>" class="regular-text" />
-                            <p class="description"><?php _e('Diretório para armazenamento de logs do sistema.', 'quilombo-laboratorio'); ?></p>
+                            <p class="description"><?php _e('Diretório para armazenamento de logs do sistema.', 'quilombo-lab'); ?></p>
                         </td>
                     </tr>
                     
                     <!-- Permissões -->
                     <tr>
                         <th colspan="2">
-                            <h3><?php _e('Permissões', 'quilombo-laboratorio'); ?></h3>
+                            <h3><?php _e('Permissões', 'quilombo-lab'); ?></h3>
                         </th>
                     </tr>
                     
                     <tr>
-                        <th scope="row"><?php _e('Habilitar Boards Públicos', 'quilombo-laboratorio'); ?></th>
+                        <th scope="row"><?php _e('Habilitar Boards Públicos', 'quilombo-lab'); ?></th>
                         <td>
                             <label>
                                 <input type="checkbox" name="enable_public_boards" value="1" <?php checked($settings['enable_public_boards'], 1); ?> />
-                                <?php _e('Permitir criação de quadros públicos visíveis a todos', 'quilombo-laboratorio'); ?>
+                                <?php _e('Permitir criação de quadros públicos visíveis a todos', 'quilombo-lab'); ?>
                             </label>
                         </td>
                     </tr>
                     
                     <tr>
-                        <th scope="row"><?php _e('Requer Login para Visualização', 'quilombo-laboratorio'); ?></th>
+                        <th scope="row"><?php _e('Requer Login para Visualização', 'quilombo-lab'); ?></th>
                         <td>
                             <label>
                                 <input type="checkbox" name="require_login_for_view" value="1" <?php checked($settings['require_login_for_view'], 1); ?> />
-                                <?php _e('Exigir login para visualizar projetos e quadros', 'quilombo-laboratorio'); ?>
+                                <?php _e('Exigir login para visualizar projetos e quadros', 'quilombo-lab'); ?>
                             </label>
                         </td>
                     </tr>
@@ -611,7 +611,7 @@ class QL_Settings {
         $settings = $this->get_advanced_settings();
         ?>
         <div class="wrap">
-            <h1><?php _e('Configurações Avançadas', 'quilombo-laboratorio'); ?></h1>
+            <h1><?php _e('Configurações Avançadas', 'quilombo-lab'); ?></h1>
             
             <?php $this->render_settings_navigation('advanced'); ?>
             
@@ -623,28 +623,28 @@ class QL_Settings {
                     <!-- Debug e Desenvolvimento -->
                     <tr>
                         <th colspan="2">
-                            <h3><?php _e('Debug e Desenvolvimento', 'quilombo-laboratorio'); ?></h3>
+                            <h3><?php _e('Debug e Desenvolvimento', 'quilombo-lab'); ?></h3>
                         </th>
                     </tr>
                     
                     <tr>
-                        <th scope="row"><?php _e('Modo Debug', 'quilombo-laboratorio'); ?></th>
+                        <th scope="row"><?php _e('Modo Debug', 'quilombo-lab'); ?></th>
                         <td>
                             <label>
                                 <input type="checkbox" name="debug_mode" value="1" <?php checked($settings['debug_mode'], 1); ?> />
-                                <?php _e('Ativar logs detalhados e informações de debug', 'quilombo-laboratorio'); ?>
+                                <?php _e('Ativar logs detalhados e informações de debug', 'quilombo-lab'); ?>
                             </label>
                         </td>
                     </tr>
                     
                     <tr>
-                        <th scope="row"><?php _e('Log Level', 'quilombo-laboratorio'); ?></th>
+                        <th scope="row"><?php _e('Log Level', 'quilombo-lab'); ?></th>
                         <td>
                             <select name="log_level">
-                                <option value="error" <?php selected($settings['log_level'], 'error'); ?>><?php _e('Somente Erros', 'quilombo-laboratorio'); ?></option>
-                                <option value="warning" <?php selected($settings['log_level'], 'warning'); ?>><?php _e('Avisos e Erros', 'quilombo-laboratorio'); ?></option>
-                                <option value="info" <?php selected($settings['log_level'], 'info'); ?>><?php _e('Informativo', 'quilombo-laboratorio'); ?></option>
-                                <option value="debug" <?php selected($settings['log_level'], 'debug'); ?>><?php _e('Debug Completo', 'quilombo-laboratorio'); ?></option>
+                                <option value="error" <?php selected($settings['log_level'], 'error'); ?>><?php _e('Somente Erros', 'quilombo-lab'); ?></option>
+                                <option value="warning" <?php selected($settings['log_level'], 'warning'); ?>><?php _e('Avisos e Erros', 'quilombo-lab'); ?></option>
+                                <option value="info" <?php selected($settings['log_level'], 'info'); ?>><?php _e('Informativo', 'quilombo-lab'); ?></option>
+                                <option value="debug" <?php selected($settings['log_level'], 'debug'); ?>><?php _e('Debug Completo', 'quilombo-lab'); ?></option>
                             </select>
                         </td>
                     </tr>
@@ -652,55 +652,55 @@ class QL_Settings {
                     <!-- Otimização -->
                     <tr>
                         <th colspan="2">
-                            <h3><?php _e('Otimização', 'quilombo-laboratorio'); ?></h3>
+                            <h3><?php _e('Otimização', 'quilombo-lab'); ?></h3>
                         </th>
                     </tr>
                     
                     <tr>
-                        <th scope="row"><?php _e('Cache de Dados', 'quilombo-laboratorio'); ?></th>
+                        <th scope="row"><?php _e('Cache de Dados', 'quilombo-lab'); ?></th>
                         <td>
                             <label>
                                 <input type="checkbox" name="enable_data_cache" value="1" <?php checked($settings['enable_data_cache'], 1); ?> />
-                                <?php _e('Ativar cache de dados para melhor performance', 'quilombo-laboratorio'); ?>
+                                <?php _e('Ativar cache de dados para melhor performance', 'quilombo-lab'); ?>
                             </label>
                         </td>
                     </tr>
                     
                     <tr>
-                        <th scope="row"><?php _e('Tempo de Cache (minutos)', 'quilombo-laboratorio'); ?></th>
+                        <th scope="row"><?php _e('Tempo de Cache (minutos)', 'quilombo-lab'); ?></th>
                         <td>
                             <input type="number" name="cache_timeout" value="<?php echo esc_attr($settings['cache_timeout']); ?>" class="small-text" min="1" max="1440" />
-                            <p class="description"><?php _e('Tempo de expiração do cache em minutos.', 'quilombo-laboratorio'); ?></p>
+                            <p class="description"><?php _e('Tempo de expiração do cache em minutos.', 'quilombo-lab'); ?></p>
                         </td>
                     </tr>
                     
                     <!-- CDNs e Recursos Externos -->
                     <tr>
                         <th colspan="2">
-                            <h3><?php _e('Recursos Externos', 'quilombo-laboratorio'); ?></h3>
+                            <h3><?php _e('Recursos Externos', 'quilombo-lab'); ?></h3>
                         </th>
                     </tr>
                     
                     <tr>
-                        <th scope="row"><?php _e('CDN FullCalendar', 'quilombo-laboratorio'); ?></th>
+                        <th scope="row"><?php _e('CDN FullCalendar', 'quilombo-lab'); ?></th>
                         <td>
                             <input type="url" name="fullcalendar_cdn" value="<?php echo esc_attr($settings['fullcalendar_cdn']); ?>" class="large-text" />
-                            <p class="description"><?php _e('URL do CDN para FullCalendar (deixe vazio para usar padrão).', 'quilombo-laboratorio'); ?></p>
+                            <p class="description"><?php _e('URL do CDN para FullCalendar (deixe vazio para usar padrão).', 'quilombo-lab'); ?></p>
                         </td>
                     </tr>
                     
                     <tr>
-                        <th scope="row"><?php _e('CDN Font Awesome', 'quilombo-laboratorio'); ?></th>
+                        <th scope="row"><?php _e('CDN Font Awesome', 'quilombo-lab'); ?></th>
                         <td>
                             <input type="url" name="fontawesome_cdn" value="<?php echo esc_attr($settings['fontawesome_cdn']); ?>" class="large-text" />
-                            <p class="description"><?php _e('URL do CDN para Font Awesome (deixe vazio para usar padrão).', 'quilombo-laboratorio'); ?></p>
+                            <p class="description"><?php _e('URL do CDN para Font Awesome (deixe vazio para usar padrão).', 'quilombo-lab'); ?></p>
                         </td>
                     </tr>
                     
                     <!-- Migração -->
                     <tr>
                         <th colspan="2">
-                            <h3><?php _e('Migração e Backup', 'quilombo-laboratorio'); ?></h3>
+                            <h3><?php _e('Migração e Backup', 'quilombo-lab'); ?></h3>
                         </th>
                     </tr>
                     
@@ -708,11 +708,11 @@ class QL_Settings {
                     </tr>
                     
                     <tr>
-                        <th scope="row"><?php _e('Auto-backup Antes de Migração', 'quilombo-laboratorio'); ?></th>
+                        <th scope="row"><?php _e('Auto-backup Antes de Migração', 'quilombo-lab'); ?></th>
                         <td>
                             <label>
                                 <input type="checkbox" name="auto_backup_before_migration" value="1" <?php checked($settings['auto_backup_before_migration'], 1); ?> />
-                                <?php _e('Criar backup automático antes de executar migrações', 'quilombo-laboratorio'); ?>
+                                <?php _e('Criar backup automático antes de executar migrações', 'quilombo-lab'); ?>
                             </label>
                         </td>
                     </tr>
@@ -720,9 +720,9 @@ class QL_Settings {
                 </table>
                 
                 <p class="submit">
-                    <?php submit_button(__('Salvar Configurações', 'quilombo-laboratorio'), 'primary', 'submit', false); ?>
+                    <?php submit_button(__('Salvar Configurações', 'quilombo-lab'), 'primary', 'submit', false); ?>
                     <button type="button" class="button" onclick="qlResetAdvancedSettings()" style="margin-left: 10px;">
-                        <?php _e('Restaurar Padrões', 'quilombo-laboratorio'); ?>
+                        <?php _e('Restaurar Padrões', 'quilombo-lab'); ?>
                     </button>
                 </p>
             </form>
@@ -730,7 +730,7 @@ class QL_Settings {
         
         <script>
         function qlResetAdvancedSettings() {
-            if (confirm('<?php _e("Tem certeza que deseja restaurar as configurações avançadas para os valores padrão?", "quilombo-laboratorio"); ?>')) {
+            if (confirm('<?php _e("Tem certeza que deseja restaurar as configurações avançadas para os valores padrão?", "quilombo-lab"); ?>')) {
                 fetch(ajaxurl, {
                     method: 'POST',
                     headers: {
@@ -820,8 +820,8 @@ class QL_Settings {
         $defaults = [
             'max_file_upload_size' => 10,
             'allowed_file_types' => 'jpg,jpeg,png,gif,pdf,doc,docx,xls,xlsx,txt,zip',
-            'upload_directory' => 'quilombo-laboratorio',
-            'logs_directory' => WP_CONTENT_DIR . '/logs/quilombo-laboratorio',
+            'upload_directory' => 'quilombo-lab',
+            'logs_directory' => WP_CONTENT_DIR . '/logs/quilombo-lab',
             'enable_public_boards' => false,
             'require_login_for_view' => true
         ];
@@ -866,7 +866,7 @@ class QL_Settings {
         ];
         
         update_option('ql_general_settings', $settings);
-        add_settings_error('ql_general_settings', 'settings_updated', __('Configurações gerais salvas com sucesso!', 'quilombo-laboratorio'), 'updated');
+        add_settings_error('ql_general_settings', 'settings_updated', __('Configurações gerais salvas com sucesso!', 'quilombo-lab'), 'updated');
     }
     
     /**
@@ -887,7 +887,7 @@ class QL_Settings {
         ];
         
         update_option('ql_integration_settings', $settings);
-        add_settings_error('ql_integration_settings', 'settings_updated', __('Configurações de integração salvas com sucesso!', 'quilombo-laboratorio'), 'updated');
+        add_settings_error('ql_integration_settings', 'settings_updated', __('Configurações de integração salvas com sucesso!', 'quilombo-lab'), 'updated');
     }
     
     /**
@@ -908,7 +908,7 @@ class QL_Settings {
         ];
         
         update_option('ql_system_settings', $settings);
-        add_settings_error('ql_system_settings', 'settings_updated', __('Configurações do sistema salvas com sucesso!', 'quilombo-laboratorio'), 'updated');
+        add_settings_error('ql_system_settings', 'settings_updated', __('Configurações do sistema salvas com sucesso!', 'quilombo-lab'), 'updated');
     }
     
     /**
@@ -930,7 +930,7 @@ class QL_Settings {
         ];
         
         update_option('ql_advanced_settings', $settings);
-        add_settings_error('ql_advanced_settings', 'settings_updated', __('Configurações avançadas salvas com sucesso!', 'quilombo-laboratorio'), 'updated');
+        add_settings_error('ql_advanced_settings', 'settings_updated', __('Configurações avançadas salvas com sucesso!', 'quilombo-lab'), 'updated');
     }
     
     /**

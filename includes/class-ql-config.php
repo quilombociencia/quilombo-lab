@@ -161,7 +161,7 @@ class QL_Config {
         return [
             'max_size' => self::get('system', 'max_file_upload_size', 10),
             'allowed_types' => self::get('system', 'allowed_file_types', 'jpg,jpeg,png,gif,pdf,doc,docx,xls,xlsx,txt,zip'),
-            'directory' => self::get('system', 'upload_directory', 'quilombo-laboratorio')
+            'directory' => self::get('system', 'upload_directory', 'quilombo-lab')
         ];
     }
     
@@ -281,7 +281,7 @@ class QL_Config {
      * Obter diretório de logs
      */
     public static function get_logs_directory() {
-        $dir = self::get('system', 'logs_directory', WP_CONTENT_DIR . '/logs/quilombo-laboratorio');
+        $dir = self::get('system', 'logs_directory', WP_CONTENT_DIR . '/logs/quilombo-lab');
         
         // Criar diretório se não existir
         if (!file_exists($dir)) {

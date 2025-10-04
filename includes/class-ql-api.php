@@ -10,7 +10,7 @@ if (!defined('ABSPATH')) {
 class QL_API {
     
     private static $instance = null;
-    private $namespace = 'quilombo-laboratorio/v1';
+    private $namespace = 'quilombo-lab/v1';
     
     /**
      * Singleton pattern

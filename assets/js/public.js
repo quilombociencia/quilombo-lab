@@ -1,5 +1,5 @@
 /**
- * Quilombo Laboratório - JavaScript Público
+ * Quilombo Lab - JavaScript Público
  */
 
 (function($) {
@@ -10,7 +10,7 @@
         
         // Configurações
         config: {
-            apiEndpoint: ql_public?.rest_url || '/wp-json/quilombo-laboratorio/v1/',
+            apiEndpoint: ql_public?.rest_url || '/wp-json/quilombo-lab/v1/',
             nonce: ql_public?.rest_nonce || '',
             currentProject: ql_public?.current_project || null,
             currentBoard: ql_public?.current_board || null,

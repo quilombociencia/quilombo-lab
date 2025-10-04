@@ -5,7 +5,7 @@
  * Este arquivo demonstra como implementar um quadro Kanban completo
  * com funcionalidade de arrastar e soltar (drag and drop).
  * 
- * @package QuilomboLaboratorio
+ * @package QuilomboLab
  * @since 1.0.0
  */
 
@@ -405,7 +405,7 @@ function get_color_class($color) {
 window.ql_admin = {
     ajax_url: '<?php echo admin_url('admin-ajax.php'); ?>',
     nonce: '<?php echo wp_create_nonce('ql_admin_nonce'); ?>',
-    rest_url: '<?php echo rest_url('quilombo-laboratorio/v1/'); ?>',
+    rest_url: '<?php echo rest_url('quilombo-lab/v1/'); ?>',
     rest_nonce: '<?php echo wp_create_nonce('wp_rest'); ?>',
     strings: {
         task_moved: 'Tarefa movida com sucesso!',

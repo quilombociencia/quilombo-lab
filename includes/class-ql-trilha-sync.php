@@ -406,7 +406,7 @@ class QL_Trilha_Sync {
         // Link para o painel administrativo
         $content .= "<div class=\"projeto-admin\">\n";
         $content .= "<h2>Gestão do Projeto</h2>\n";
-        $content .= "<p><a href=\"" . admin_url('admin.php?page=quilombo-laboratorio-projetos') . "\" class=\"button button-primary\">Acessar Painel Administrativo</a></p>\n";
+        $content .= "<p><a href=\"" . admin_url('admin.php?page=quilombo-lab-projetos') . "\" class=\"button button-primary\">Acessar Painel Administrativo</a></p>\n";
         $content .= "</div>\n";
         
         return $content;

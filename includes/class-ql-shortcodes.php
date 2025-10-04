@@ -687,11 +687,11 @@ class QL_Shortcodes {
     }
     
     private function get_project_url($project) {
-        return add_query_arg('projeto', $project->slug, home_url('/laboratorio/'));
+        return add_query_arg('projeto', $project->slug, home_url('/lab/'));
     }
     
     private function get_project_edit_url($project) {
-        return admin_url('admin.php?page=quilombo-laboratorio-projetos&action=edit&id=' . $project->id);
+        return admin_url('admin.php?page=quilombo-lab-projetos&action=edit&id=' . $project->id);
     }
     
     private function get_status_label($status) {

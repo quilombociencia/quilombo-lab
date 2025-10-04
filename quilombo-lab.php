@@ -10,7 +10,7 @@
  * Requires at least: 5.0
  * Tested up to: 6.6
  * Requires PHP: 7.4
- * Text Domain: quilombo-laboratorio
+ * Text Domain: quilombo-lab
  * Domain Path: /languages
  */
 
@@ -82,7 +82,7 @@ class QuilomboLaboratorio {
         $this->setup_hooks();
         
         // Carregar idiomas
-        load_plugin_textdomain('quilombo-laboratorio', false, dirname(QL_PLUGIN_BASENAME) . '/languages');
+        load_plugin_textdomain('quilombo-lab', false, dirname(QL_PLUGIN_BASENAME) . '/languages');
         
         // Log de inicialização
         error_log('Quilombo Laboratório: Plugin inicializado com sucesso');
@@ -96,7 +96,7 @@ class QuilomboLaboratorio {
         if (version_compare(PHP_VERSION, '7.4', '<')) {
             add_action('admin_notices', function() {
                 echo '<div class="notice notice-error"><p>';
-                echo __('Quilombo Laboratório requer PHP 7.4 ou superior. Versão atual: ' . PHP_VERSION, 'quilombo-laboratorio');
+                echo __('Quilombo Laboratório requer PHP 7.4 ou superior. Versão atual: ' . PHP_VERSION, 'quilombo-lab');
                 echo '</p></div>';
             });
             return false;
@@ -108,7 +108,7 @@ class QuilomboLaboratorio {
             if (current_user_can('manage_options') && is_admin()) {
                 add_action('admin_notices', function() {
                     echo '<div class="notice notice-info is-dismissible"><p>';
-                    echo __('Quilombo Laboratório funcionando de forma independente. Para funcionalidades avançadas de gestão financeira, ative o Plugin Gestão Coletiva.', 'quilombo-laboratorio');
+                    echo __('Quilombo Laboratório funcionando de forma independente. Para funcionalidades avançadas de gestão financeira, ative o Plugin Gestão Coletiva.', 'quilombo-lab');
                     echo '</p></div>';
                 });
             }
@@ -299,26 +299,26 @@ class QuilomboLaboratorio {
      */
     public function enqueue_public_assets() {
         wp_enqueue_style(
-            'quilombo-laboratorio-public',
+            'quilombo-lab-public',
             QL_PLUGIN_URL . 'assets/css/public.css',
             [],
             QL_PLUGIN_VERSION
         );
         
         wp_enqueue_script(
-            'quilombo-laboratorio-public',
+            'quilombo-lab-public',
             QL_PLUGIN_URL . 'assets/js/public.js',
             ['jquery'],
             QL_PLUGIN_VERSION,
             true
         );
         
-        wp_localize_script('quilombo-laboratorio-public', 'ql_ajax', [
+        wp_localize_script('quilombo-lab-public', 'ql_ajax', [
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('ql_public_nonce'),
             'strings' => [
-                'loading' => __('Carregando...', 'quilombo-laboratorio'),
-                'error' => __('Erro ao carregar dados.', 'quilombo-laboratorio'),
+                'loading' => __('Carregando...', 'quilombo-lab'),
+                'error' => __('Erro ao carregar dados.', 'quilombo-lab'),
             ]
         ]);
     }
@@ -337,27 +337,27 @@ class QuilomboLaboratorio {
         error_log("QL Debug: Carregando scripts na página: " . $hook);
         
         // Verificar se é uma página do plugin
-        $is_ql_page = strpos($hook, 'quilombo-laboratorio') !== false;
+        $is_ql_page = strpos($hook, 'quilombo-lab') !== false;
         
         wp_enqueue_style(
-            'quilombo-laboratorio-admin',
+            'quilombo-lab-admin',
             QL_PLUGIN_URL . 'assets/css/admin.css',
             [],
             QL_PLUGIN_VERSION
         );
         
         wp_enqueue_style(
-            'quilombo-laboratorio-task-modals',
+            'quilombo-lab-task-modals',
             QL_PLUGIN_URL . 'assets/css/task-modals.css',
-            ['quilombo-laboratorio-admin'],
+            ['quilombo-lab-admin'],
             QL_PLUGIN_VERSION
         );
         
         // CSS de correção para problemas críticos
         wp_enqueue_style(
-            'quilombo-laboratorio-fix',
+            'quilombo-lab-fix',
             QL_PLUGIN_URL . 'assets/css/kanban-fix.css',
-            ['quilombo-laboratorio-admin'],
+            ['quilombo-lab-admin'],
             QL_PLUGIN_VERSION
         );
         
@@ -372,7 +372,7 @@ class QuilomboLaboratorio {
         
         // Scripts principais reativados para funcionalidade completa
         wp_enqueue_script(
-            'quilombo-laboratorio-kanban',
+            'quilombo-lab-kanban',
             QL_PLUGIN_URL . 'assets/js/kanban.js',
             ['jquery', 'jquery-ui-core', 'jquery-ui-widget', 'jquery-ui-mouse', 'jquery-ui-sortable', 'jquery-ui-draggable', 'jquery-ui-droppable'],
             QL_PLUGIN_VERSION,
@@ -381,24 +381,24 @@ class QuilomboLaboratorio {
         
         // DESABILITADO: Conflita com sistema final de modais
         // wp_enqueue_script(
-        //     'quilombo-laboratorio-task-modals',
+        //     'quilombo-lab-task-modals',
         //     QL_PLUGIN_URL . 'assets/js/task-modals.js',
-        //     ['jquery', 'quilombo-laboratorio-kanban'],
+        //     ['jquery', 'quilombo-lab-kanban'],
         //     QL_PLUGIN_VERSION,
         //     true
         // );
         
         wp_enqueue_script(
-            'quilombo-laboratorio-admin',
+            'quilombo-lab-admin',
             QL_PLUGIN_URL . 'assets/js/admin.js',
-            ['jquery', 'quilombo-laboratorio-kanban'],
+            ['jquery', 'quilombo-lab-kanban'],
             QL_PLUGIN_VERSION,
             true
         );
         
         // SISTEMA DE DEBUG: Desabilitado - usando sistema final
         // wp_enqueue_script(
-        //     'quilombo-laboratorio-debug',
+        //     'quilombo-lab-debug',
         //     QL_PLUGIN_URL . 'assets/js/debug-modal-system.js',
         //     ['jquery'],
         //     QL_PLUGIN_VERSION . '-debug',
@@ -407,18 +407,18 @@ class QuilomboLaboratorio {
         
         // MODAIS FINAIS: Sistema completo com integração backend
         wp_enqueue_script(
-            'quilombo-laboratorio-final-modals',
+            'quilombo-lab-final-modals',
             QL_PLUGIN_URL . 'assets/js/final-working-modals.js',
-            ['jquery', 'quilombo-laboratorio-kanban', 'quilombo-laboratorio-admin'],
+            ['jquery', 'quilombo-lab-kanban', 'quilombo-lab-admin'],
             QL_PLUGIN_VERSION . '-final',
             true
         );
         
         // TESTE TEMPORÁRIO: Verificar se sistema final está funcionando
         wp_enqueue_script(
-            'quilombo-laboratorio-test-final',
+            'quilombo-lab-test-final',
             QL_PLUGIN_URL . 'assets/js/test-final-modals.js',
-            ['jquery', 'quilombo-laboratorio-final-modals'],
+            ['jquery', 'quilombo-lab-final-modals'],
             QL_PLUGIN_VERSION . '-test',
             true
         );
@@ -427,7 +427,7 @@ class QuilomboLaboratorio {
         if ($is_ql_page || strpos($hook, 'project') !== false) {
             // Scripts de fix removidos - causavam conflitos e não existem
             // wp_enqueue_script(
-            //     'quilombo-laboratorio-fix',
+            //     'quilombo-lab-fix',
             //     QL_PLUGIN_URL . 'assets/js/kanban-fix.js',
             //     ['jquery', 'jquery-ui-sortable'],
             //     QL_PLUGIN_VERSION,
@@ -435,7 +435,7 @@ class QuilomboLaboratorio {
             // );
             
             // wp_enqueue_script(
-            //     'quilombo-laboratorio-jquery-fix',
+            //     'quilombo-lab-jquery-fix',
             //     QL_PLUGIN_URL . 'assets/js/jquery-fix-override.js',
             //     ['jquery'],
             //     QL_PLUGIN_VERSION,
@@ -455,23 +455,23 @@ class QuilomboLaboratorio {
         // Localizar variáveis para múltiplos scripts
         $localize_data = [
             'ajax_url' => admin_url('admin-ajax.php'),
-            'rest_url' => rest_url('quilombo-laboratorio/v1/'),
+            'rest_url' => rest_url('quilombo-lab/v1/'),
             'nonce' => wp_create_nonce('ql_admin_nonce'),
             'rest_nonce' => wp_create_nonce('wp_rest'),
             'board_id' => $board_id,
             'default_board_id' => $board_id,
             'strings' => [
-                'confirm_delete' => __('Tem certeza que deseja excluir?', 'quilombo-laboratorio'),
-                'task_moved' => __('Tarefa movida com sucesso!', 'quilombo-laboratorio'),
-                'error_moving' => __('Erro ao mover tarefa.', 'quilombo-laboratorio'),
+                'confirm_delete' => __('Tem certeza que deseja excluir?', 'quilombo-lab'),
+                'task_moved' => __('Tarefa movida com sucesso!', 'quilombo-lab'),
+                'error_moving' => __('Erro ao mover tarefa.', 'quilombo-lab'),
             ]
         ];
         
         // Localizar para todos os scripts que precisam
-        wp_localize_script('quilombo-laboratorio-task-modals', 'ql_admin', $localize_data);
-        wp_localize_script('quilombo-laboratorio-kanban', 'ql_admin', $localize_data);
-        wp_localize_script('quilombo-laboratorio-admin', 'ql_admin', $localize_data);
-        wp_localize_script('quilombo-laboratorio-final-modals', 'ql_admin', $localize_data);
+        wp_localize_script('quilombo-lab-task-modals', 'ql_admin', $localize_data);
+        wp_localize_script('quilombo-lab-kanban', 'ql_admin', $localize_data);
+        wp_localize_script('quilombo-lab-admin', 'ql_admin', $localize_data);
+        wp_localize_script('quilombo-lab-final-modals', 'ql_admin', $localize_data);
         
         // Incluir modais em páginas do plugin via hook
         if ($is_ql_page) {
@@ -484,7 +484,7 @@ class QuilomboLaboratorio {
         add_action('wp_footer', [$this, 'include_critical_js_fix']);
         
         // CORREÇÃO DIRETA: Executar imediatamente se estivermos numa página do plugin
-        if (isset($_GET['page']) && strpos($_GET['page'], 'quilombo-laboratorio') !== false) {
+        if (isset($_GET['page']) && strpos($_GET['page'], 'quilombo-lab') !== false) {
             add_action('admin_init', function() {
                 ob_start();
                 ?>
@@ -526,7 +526,7 @@ class QuilomboLaboratorio {
      */
     public function include_critical_js_fix() {
         // Só executar em páginas do Kanban
-        if (!isset($_GET['page']) || strpos($_GET['page'], 'quilombo-laboratorio') === false) {
+        if (!isset($_GET['page']) || strpos($_GET['page'], 'quilombo-lab') === false) {
             return;
         }
         
@@ -1083,7 +1083,7 @@ class QuilomboLaboratorio {
     public function on_plugin_update($upgrader_object, $options) {
         if (isset($options['plugins'])) {
             foreach ($options['plugins'] as $plugin) {
-                if (strpos($plugin, 'quilombo-laboratorio') !== false) {
+                if (strpos($plugin, 'quilombo-lab') !== false) {
                     $this->install_or_update_database();
                     update_option('ql_needs_initial_sync', true);
                     break;

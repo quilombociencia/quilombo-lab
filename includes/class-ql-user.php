@@ -41,15 +41,15 @@ class QL_User {
      */
     private function add_custom_capabilities() {
         $capabilities = [
-            'ql_view_projects' => __('Ver projetos do Laboratório', 'quilombo-laboratorio'),
-            'ql_create_tasks' => __('Criar tarefas', 'quilombo-laboratorio'),
-            'ql_edit_own_tasks' => __('Editar próprias tarefas', 'quilombo-laboratorio'),
-            'ql_edit_all_tasks' => __('Editar todas as tarefas', 'quilombo-laboratorio'),
-            'ql_delete_tasks' => __('Excluir tarefas', 'quilombo-laboratorio'),
-            'ql_manage_projects' => __('Gerenciar projetos', 'quilombo-laboratorio'),
-            'ql_manage_boards' => __('Gerenciar quadros', 'quilombo-laboratorio'),
-            'ql_view_reports' => __('Ver relatórios', 'quilombo-laboratorio'),
-            'ql_manage_users' => __('Gerenciar usuários do Laboratório', 'quilombo-laboratorio')
+            'ql_view_projects' => __('Ver projetos do Laboratório', 'quilombo-lab'),
+            'ql_create_tasks' => __('Criar tarefas', 'quilombo-lab'),
+            'ql_edit_own_tasks' => __('Editar próprias tarefas', 'quilombo-lab'),
+            'ql_edit_all_tasks' => __('Editar todas as tarefas', 'quilombo-lab'),
+            'ql_delete_tasks' => __('Excluir tarefas', 'quilombo-lab'),
+            'ql_manage_projects' => __('Gerenciar projetos', 'quilombo-lab'),
+            'ql_manage_boards' => __('Gerenciar quadros', 'quilombo-lab'),
+            'ql_view_reports' => __('Ver relatórios', 'quilombo-lab'),
+            'ql_manage_users' => __('Gerenciar usuários do Laboratório', 'quilombo-lab')
         ];
         
         // Adicionar capabilities aos roles existentes
@@ -98,7 +98,7 @@ class QL_User {
      */
     private function add_custom_roles() {
         // Project Manager
-        add_role('ql_project_manager', __('Gerente de Projeto', 'quilombo-laboratorio'), [
+        add_role('ql_project_manager', __('Gerente de Projeto', 'quilombo-lab'), [
             'read' => true,
             'ql_view_projects' => true,
             'ql_create_tasks' => true,
@@ -111,7 +111,7 @@ class QL_User {
         ]);
         
         // Team Member
-        add_role('ql_team_member', __('Membro da Equipe', 'quilombo-laboratorio'), [
+        add_role('ql_team_member', __('Membro da Equipe', 'quilombo-lab'), [
             'read' => true,
             'ql_view_projects' => true,
             'ql_create_tasks' => true,
@@ -120,7 +120,7 @@ class QL_User {
         ]);
         
         // Observer
-        add_role('ql_observer', __('Observador', 'quilombo-laboratorio'), [
+        add_role('ql_observer', __('Observador', 'quilombo-lab'), [
             'read' => true,
             'ql_view_projects' => true,
             'ql_view_reports' => true
@@ -172,39 +172,39 @@ class QL_User {
         $user_stats = $this->get_user_stats($user->ID);
         ?>
         
-        <h3><?php _e('Configurações do Laboratório', 'quilombo-laboratorio'); ?></h3>
+        <h3><?php _e('Configurações do Laboratório', 'quilombo-lab'); ?></h3>
         
         <table class="form-table">
             <tr>
-                <th scope="row"><?php _e('Notificações', 'quilombo-laboratorio'); ?></th>
+                <th scope="row"><?php _e('Notificações', 'quilombo-lab'); ?></th>
                 <td>
                     <label>
                         <input type="checkbox" name="ql_notifications_enabled" value="1" 
                                <?php checked($preferences['notifications_enabled'] ?? true); ?> />
-                        <?php _e('Receber notificações do Laboratório', 'quilombo-laboratorio'); ?>
+                        <?php _e('Receber notificações do Laboratório', 'quilombo-lab'); ?>
                     </label>
                 </td>
             </tr>
             
             <tr>
-                <th scope="row"><?php _e('Visualização Padrão', 'quilombo-laboratorio'); ?></th>
+                <th scope="row"><?php _e('Visualização Padrão', 'quilombo-lab'); ?></th>
                 <td>
                     <select name="ql_default_project_view">
                         <option value="kanban" <?php selected($preferences['default_project_view'] ?? 'kanban', 'kanban'); ?>>
-                            <?php _e('Quadro Kanban', 'quilombo-laboratorio'); ?>
+                            <?php _e('Quadro Kanban', 'quilombo-lab'); ?>
                         </option>
                         <option value="list" <?php selected($preferences['default_project_view'] ?? 'kanban', 'list'); ?>>
-                            <?php _e('Lista de Tarefas', 'quilombo-laboratorio'); ?>
+                            <?php _e('Lista de Tarefas', 'quilombo-lab'); ?>
                         </option>
                         <option value="calendar" <?php selected($preferences['default_project_view'] ?? 'kanban', 'calendar'); ?>>
-                            <?php _e('Calendário', 'quilombo-laboratorio'); ?>
+                            <?php _e('Calendário', 'quilombo-lab'); ?>
                         </option>
                     </select>
                 </td>
             </tr>
             
             <tr>
-                <th scope="row"><?php _e('Fuso Horário', 'quilombo-laboratorio'); ?></th>
+                <th scope="row"><?php _e('Fuso Horário', 'quilombo-lab'); ?></th>
                 <td>
                     <select name="ql_timezone">
                         <?php
@@ -225,13 +225,13 @@ class QL_User {
             </tr>
         </table>
         
-        <h3><?php _e('Estatísticas do Laboratório', 'quilombo-laboratorio'); ?></h3>
+        <h3><?php _e('Estatísticas do Laboratório', 'quilombo-lab'); ?></h3>
         
         <table class="form-table">
             <tr>
-                <th scope="row"><?php _e('Projetos', 'quilombo-laboratorio'); ?></th>
+                <th scope="row"><?php _e('Projetos', 'quilombo-lab'); ?></th>
                 <td>
-                    <p><strong><?php echo count($user_projects); ?></strong> <?php _e('projetos participando', 'quilombo-laboratorio'); ?></p>
+                    <p><strong><?php echo count($user_projects); ?></strong> <?php _e('projetos participando', 'quilombo-lab'); ?></p>
                     <?php if (!empty($user_projects)): ?>
                         <ul style="margin-top: 10px;">
                             <?php foreach ($user_projects as $project): ?>
@@ -246,31 +246,31 @@ class QL_User {
             </tr>
             
             <tr>
-                <th scope="row"><?php _e('Tarefas', 'quilombo-laboratorio'); ?></th>
+                <th scope="row"><?php _e('Tarefas', 'quilombo-lab'); ?></th>
                 <td>
-                    <p><strong><?php echo $user_stats['total_tasks']; ?></strong> <?php _e('tarefas atribuídas', 'quilombo-laboratorio'); ?></p>
-                    <p><strong><?php echo $user_stats['completed_tasks']; ?></strong> <?php _e('tarefas concluídas', 'quilombo-laboratorio'); ?></p>
-                    <p><strong><?php echo $user_stats['active_tasks']; ?></strong> <?php _e('tarefas ativas', 'quilombo-laboratorio'); ?></p>
+                    <p><strong><?php echo $user_stats['total_tasks']; ?></strong> <?php _e('tarefas atribuídas', 'quilombo-lab'); ?></p>
+                    <p><strong><?php echo $user_stats['completed_tasks']; ?></strong> <?php _e('tarefas concluídas', 'quilombo-lab'); ?></p>
+                    <p><strong><?php echo $user_stats['active_tasks']; ?></strong> <?php _e('tarefas ativas', 'quilombo-lab'); ?></p>
                 </td>
             </tr>
             
             <tr>
-                <th scope="row"><?php _e('Última Atividade', 'quilombo-laboratorio'); ?></th>
+                <th scope="row"><?php _e('Última Atividade', 'quilombo-lab'); ?></th>
                 <td>
-                    <p><?php echo $user_stats['last_activity'] ? date_i18n('d/m/Y H:i', strtotime($user_stats['last_activity'])) : __('Nunca', 'quilombo-laboratorio'); ?></p>
+                    <p><?php echo $user_stats['last_activity'] ? date_i18n('d/m/Y H:i', strtotime($user_stats['last_activity'])) : __('Nunca', 'quilombo-lab'); ?></p>
                 </td>
             </tr>
         </table>
         
         <?php if (current_user_can('ql_manage_users')): ?>
-            <h3><?php _e('Gestão de Projetos', 'quilombo-laboratorio'); ?></h3>
+            <h3><?php _e('Gestão de Projetos', 'quilombo-lab'); ?></h3>
             
             <table class="form-table">
                 <tr>
-                    <th scope="row"><?php _e('Adicionar a Projeto', 'quilombo-laboratorio'); ?></th>
+                    <th scope="row"><?php _e('Adicionar a Projeto', 'quilombo-lab'); ?></th>
                     <td>
                         <select name="ql_add_to_project" id="ql-add-to-project">
-                            <option value=""><?php _e('Selecione um projeto...', 'quilombo-laboratorio'); ?></option>
+                            <option value=""><?php _e('Selecione um projeto...', 'quilombo-lab'); ?></option>
                             <?php
                             $all_projects = $this->get_all_projects();
                             foreach ($all_projects as $project) {
@@ -280,13 +280,13 @@ class QL_User {
                         </select>
                         
                         <select name="ql_project_role" id="ql-project-role">
-                            <option value="member"><?php _e('Membro', 'quilombo-laboratorio'); ?></option>
-                            <option value="manager"><?php _e('Gerente', 'quilombo-laboratorio'); ?></option>
-                            <option value="observer"><?php _e('Observador', 'quilombo-laboratorio'); ?></option>
+                            <option value="member"><?php _e('Membro', 'quilombo-lab'); ?></option>
+                            <option value="manager"><?php _e('Gerente', 'quilombo-lab'); ?></option>
+                            <option value="observer"><?php _e('Observador', 'quilombo-lab'); ?></option>
                         </select>
                         
                         <button type="button" id="ql-add-user-to-project" class="button">
-                            <?php _e('Adicionar', 'quilombo-laboratorio'); ?>
+                            <?php _e('Adicionar', 'quilombo-lab'); ?>
                         </button>
                         
                         <script>
@@ -297,7 +297,7 @@ class QL_User {
                                 var userId = <?php echo $user->ID; ?>;
                                 
                                 if (!projectId) {
-                                    alert('<?php _e('Selecione um projeto', 'quilombo-laboratorio'); ?>');
+                                    alert('<?php _e('Selecione um projeto', 'quilombo-lab'); ?>');
                                     return;
                                 }
                                 
@@ -309,10 +309,10 @@ class QL_User {
                                     nonce: '<?php echo wp_create_nonce('ql_admin_nonce'); ?>'
                                 }, function(response) {
                                     if (response.success) {
-                                        alert('<?php _e('Usuário adicionado ao projeto com sucesso!', 'quilombo-laboratorio'); ?>');
+                                        alert('<?php _e('Usuário adicionado ao projeto com sucesso!', 'quilombo-lab'); ?>');
                                         location.reload();
                                     } else {
-                                        alert('<?php _e('Erro:', 'quilombo-laboratorio'); ?> ' + response.data);
+                                        alert('<?php _e('Erro:', 'quilombo-lab'); ?> ' + response.data);
                                     }
                                 });
                             });

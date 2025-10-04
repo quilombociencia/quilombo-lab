@@ -10,7 +10,7 @@
         
         // Configurações
         config: {
-            apiEndpoint: ql_admin?.rest_url || '/wp-json/quilombo-laboratorio/v1/',
+            apiEndpoint: ql_admin?.rest_url || '/wp-json/quilombo-lab/v1/',
             nonce: ql_admin?.rest_nonce || ''
         },
         
@@ -198,7 +198,7 @@
                             </div>
                             <div class="ql-modal-footer">
                                 <button type="button" class="button ql-modal-close">Fechar</button>
-                                <a href="${window.location.href.split('?')[0]}?page=quilombo-laboratorio-project-boards&project_id=${projectId}" class="button button-primary">Ver Quadros</a>
+                                <a href="${window.location.href.split('?')[0]}?page=quilombo-lab-project-boards&project_id=${projectId}" class="button button-primary">Ver Quadros</a>
                             </div>
                         </div>
                     </div>
@@ -419,7 +419,7 @@
     window.qlOpenKanbanBoard = function(boardId) {
         // Obter URL base do admin
         var adminUrl = window.location.href.split('/wp-admin/')[0] + '/wp-admin/admin.php';
-        var kanbanUrl = adminUrl + '?page=quilombo-laboratorio-kanban&board_id=' + boardId;
+        var kanbanUrl = adminUrl + '?page=quilombo-lab-kanban&board_id=' + boardId;
         
         // Redirecionar para a página do Kanban
         window.location.href = kanbanUrl;

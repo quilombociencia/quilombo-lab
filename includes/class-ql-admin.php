@@ -30,10 +30,10 @@ class QL_Admin {
     public function add_admin_menu() {
         // Menu principal
         add_menu_page(
-            __('Laboratório de Projetos', 'quilombo-laboratorio'),
-            __('Laboratório', 'quilombo-laboratorio'),
+            __('Laboratório de Projetos', 'quilombo-lab'),
+            __('Laboratório', 'quilombo-lab'),
             'read',
-            'quilombo-laboratorio',
+            'quilombo-lab',
             [$this, 'dashboard_page'],
             'dashicons-clipboard',
             30
@@ -41,61 +41,61 @@ class QL_Admin {
         
         // Submenu Painel
         add_submenu_page(
-            'quilombo-laboratorio',
-            __('Painel', 'quilombo-laboratorio'),
-            __('🏠 Painel', 'quilombo-laboratorio'),
+            'quilombo-lab',
+            __('Painel', 'quilombo-lab'),
+            __('🏠 Painel', 'quilombo-lab'),
             'read',
-            'quilombo-laboratorio',
+            'quilombo-lab',
             [$this, 'dashboard_page']
         );
         
         // Submenu Projetos
         add_submenu_page(
-            'quilombo-laboratorio',
-            __('Projetos', 'quilombo-laboratorio'),
-            __('📋 Projetos', 'quilombo-laboratorio'),
+            'quilombo-lab',
+            __('Projetos', 'quilombo-lab'),
+            __('📋 Projetos', 'quilombo-lab'),
             'read',
-            'quilombo-laboratorio-projetos',
+            'quilombo-lab-projetos',
             [$this, 'projects_page']
         );
         
         // Submenu Quadros (escondido do menu, acessado via parâmetro)
         add_submenu_page(
             null, // Parent null = não aparece no menu
-            __('Quadros do Projeto', 'quilombo-laboratorio'),
-            __('Quadros', 'quilombo-laboratorio'),
+            __('Quadros do Projeto', 'quilombo-lab'),
+            __('Quadros', 'quilombo-lab'),
             'read',
-            'quilombo-laboratorio-project-boards',
+            'quilombo-lab-project-boards',
             [$this, 'project_boards_page']
         );
         
         // Submenu Kanban (escondido do menu, acessado via parâmetro)
         add_submenu_page(
             null, // Parent null = não aparece no menu
-            __('Kanban Board', 'quilombo-laboratorio'),
-            __('Kanban', 'quilombo-laboratorio'),
+            __('Kanban Board', 'quilombo-lab'),
+            __('Kanban', 'quilombo-lab'),
             'read',
-            'quilombo-laboratorio-kanban',
+            'quilombo-lab-kanban',
             [$this, 'kanban_page']
         );
         
         // Submenu Status
         add_submenu_page(
-            'quilombo-laboratorio',
-            __('Status do Sistema', 'quilombo-laboratorio'),
-            __('⚙️ Status', 'quilombo-laboratorio'),
+            'quilombo-lab',
+            __('Status do Sistema', 'quilombo-lab'),
+            __('⚙️ Status', 'quilombo-lab'),
             'read',
-            'quilombo-laboratorio-status',
+            'quilombo-lab-status',
             [$this, 'status_page']
         );
         
         // Submenu Dashboard Unificado
         add_submenu_page(
-            'quilombo-laboratorio',
-            __('Dashboard Unificado', 'quilombo-laboratorio'),
-            __('🎯 Dashboard', 'quilombo-laboratorio'),
+            'quilombo-lab',
+            __('Dashboard Unificado', 'quilombo-lab'),
+            __('🎯 Dashboard', 'quilombo-lab'),
             'read',
-            'quilombo-laboratorio-dashboard',
+            'quilombo-lab-dashboard',
             [$this, 'unified_dashboard_page']
         );
         
@@ -110,24 +110,24 @@ class QL_Admin {
         // Link para dashboard
         $plugin_links[] = sprintf(
             '<a href="%s">%s</a>',
-            admin_url('admin.php?page=quilombo-laboratorio'),
-            __('Painel', 'quilombo-laboratorio')
+            admin_url('admin.php?page=quilombo-lab'),
+            __('Painel', 'quilombo-lab')
         );
         
         // Link para configurações (apenas admins)
         if (current_user_can('manage_options')) {
             $plugin_links[] = sprintf(
                 '<a href="%s">%s</a>',
-                admin_url('admin.php?page=quilombo-laboratorio-settings'),
-                __('Configurações', 'quilombo-laboratorio')
+                admin_url('admin.php?page=quilombo-lab-settings'),
+                __('Configurações', 'quilombo-lab')
             );
         }
         
         // Link para status
         $plugin_links[] = sprintf(
             '<a href="%s">%s</a>',
-            admin_url('admin.php?page=quilombo-laboratorio-status'),
-            __('Status', 'quilombo-laboratorio')
+            admin_url('admin.php?page=quilombo-lab-status'),
+            __('Status', 'quilombo-lab')
         );
         
         return array_merge($plugin_links, $links);
@@ -170,35 +170,35 @@ class QL_Admin {
         
         ?>
         <div class="wrap">
-            <h1><?php _e('Laboratório de Projetos - Painel', 'quilombo-laboratorio'); ?></h1>
+            <h1><?php _e('Laboratório de Projetos - Painel', 'quilombo-lab'); ?></h1>
             
             <div class="ql-painel-grid">
                 <!-- Cards de Estatísticas -->
                 <div class="ql-stats-cards">
                     <div class="ql-card">
-                        <h3><?php _e('Meus Projetos', 'quilombo-laboratorio'); ?></h3>
+                        <h3><?php _e('Meus Projetos', 'quilombo-lab'); ?></h3>
                         <div class="ql-stat-number"><?php echo count($user_projects); ?></div>
-                        <p><?php _e('Projetos em que você participa', 'quilombo-laboratorio'); ?></p>
+                        <p><?php _e('Projetos em que você participa', 'quilombo-lab'); ?></p>
                     </div>
                     
                     <div class="ql-card">
-                        <h3><?php _e('Total de Projetos', 'quilombo-laboratorio'); ?></h3>
+                        <h3><?php _e('Total de Projetos', 'quilombo-lab'); ?></h3>
                         <div class="ql-stat-number"><?php echo $total_projects; ?></div>
-                        <p><?php _e('Projetos no sistema', 'quilombo-laboratorio'); ?></p>
+                        <p><?php _e('Projetos no sistema', 'quilombo-lab'); ?></p>
                     </div>
                     
                     <div class="ql-card">
-                        <h3><?php _e('Integração GC', 'quilombo-laboratorio'); ?></h3>
+                        <h3><?php _e('Integração GC', 'quilombo-lab'); ?></h3>
                         <div class="ql-stat-indicator <?php echo $gc_integration_status; ?>">
                             <?php echo $gc_integration_status === 'active' ? '✅ Ativa' : '⚠️ Inativa'; ?>
                         </div>
-                        <p><?php _e('Status da integração financeira', 'quilombo-laboratorio'); ?></p>
+                        <p><?php _e('Status da integração financeira', 'quilombo-lab'); ?></p>
                     </div>
                 </div>
                 
                 <!-- Lista de Projetos Recentes -->
                 <div class="ql-recent-projects">
-                    <h2><?php _e('Seus Projetos Recentes', 'quilombo-laboratorio'); ?></h2>
+                    <h2><?php _e('Seus Projetos Recentes', 'quilombo-lab'); ?></h2>
                     
                     <?php if (!empty($user_projects)): ?>
                         <div class="ql-projects-list">
@@ -207,7 +207,7 @@ class QL_Admin {
                                     <div class="ql-project-info">
                                         <h4><?php echo esc_html($project->name); ?></h4>
                                         <p><?php echo esc_html($project->description ?: 'Sem descrição'); ?></p>
-                                        <small><?php printf(__('Criado em %s', 'quilombo-laboratorio'), date('d/m/Y', strtotime($project->created_at))); ?></small>
+                                        <small><?php printf(__('Criado em %s', 'quilombo-lab'), date('d/m/Y', strtotime($project->created_at))); ?></small>
                                     </div>
                                     <div class="ql-project-status">
                                         <span class="ql-status-badge ql-status-<?php echo $project->status; ?>">
@@ -220,16 +220,16 @@ class QL_Admin {
                         
                         <p class="ql-view-all">
                             <a href="<?php echo admin_url('admin.php?page=ql-projects'); ?>" class="button">
-                                <?php _e('Ver Todos os Projetos', 'quilombo-laboratorio'); ?>
+                                <?php _e('Ver Todos os Projetos', 'quilombo-lab'); ?>
                             </a>
                         </p>
                     <?php else: ?>
                         <div class="ql-empty-state">
-                            <p><?php _e('Você ainda não participa de nenhum projeto.', 'quilombo-laboratorio'); ?></p>
+                            <p><?php _e('Você ainda não participa de nenhum projeto.', 'quilombo-lab'); ?></p>
                             <?php if (current_user_can('ql_create_tasks')): ?>
                                 <p>
                                     <a href="<?php echo admin_url('admin.php?page=ql-projects'); ?>" class="button button-primary">
-                                        <?php _e('Explorar Projetos', 'quilombo-laboratorio'); ?>
+                                        <?php _e('Explorar Projetos', 'quilombo-lab'); ?>
                                     </a>
                                 </p>
                             <?php endif; ?>
@@ -239,20 +239,20 @@ class QL_Admin {
                 
                 <!-- Ações Rápidas -->
                 <div class="ql-quick-actions">
-                    <h2><?php _e('Ações Rápidas', 'quilombo-laboratorio'); ?></h2>
+                    <h2><?php _e('Ações Rápidas', 'quilombo-lab'); ?></h2>
                     
                     <div class="ql-action-buttons">
-                        <a href="<?php echo admin_url('admin.php?page=quilombo-laboratorio-projetos'); ?>" class="button button-primary">
-                            📋 <?php _e('Ver Projetos', 'quilombo-laboratorio'); ?>
+                        <a href="<?php echo admin_url('admin.php?page=quilombo-lab-projetos'); ?>" class="button button-primary">
+                            📋 <?php _e('Ver Projetos', 'quilombo-lab'); ?>
                         </a>
                         
                         <?php if (current_user_can('manage_options')): ?>
-                            <a href="<?php echo admin_url('admin.php?page=quilombo-laboratorio-status'); ?>" class="button">
-                                ⚙️ <?php _e('Verificar Status', 'quilombo-laboratorio'); ?>
+                            <a href="<?php echo admin_url('admin.php?page=quilombo-lab-status'); ?>" class="button">
+                                ⚙️ <?php _e('Verificar Status', 'quilombo-lab'); ?>
                             </a>
                             
-                            <a href="<?php echo admin_url('admin.php?page=quilombo-laboratorio-settings'); ?>" class="button">
-                                🔧 <?php _e('Configurações', 'quilombo-laboratorio'); ?>
+                            <a href="<?php echo admin_url('admin.php?page=quilombo-lab-settings'); ?>" class="button">
+                                🔧 <?php _e('Configurações', 'quilombo-lab'); ?>
                             </a>
                         <?php endif; ?>
                     </div>
@@ -412,10 +412,10 @@ class QL_Admin {
         
         ?>
         <div class="wrap">
-            <h1><?php _e('Projetos do Laboratório', 'quilombo-laboratorio'); ?>
+            <h1><?php _e('Projetos do Laboratório', 'quilombo-lab'); ?>
                 <?php if (current_user_can('manage_options')): ?>
                     <a href="<?php echo add_query_arg('create_demo', '1'); ?>" class="page-title-action">
-                        <?php _e('+ Criar Projeto Demo', 'quilombo-laboratorio'); ?>
+                        <?php _e('+ Criar Projeto Demo', 'quilombo-lab'); ?>
                     </a>
                 <?php endif; ?>
             </h1>
@@ -497,7 +497,7 @@ class QL_Admin {
                                     
                                     <div class="ql-project-meta">
                                         <small>
-                                            <?php printf(__('Criado em %s', 'quilombo-laboratorio'), date('d/m/Y', strtotime($project->created_at))); ?>
+                                            <?php printf(__('Criado em %s', 'quilombo-lab'), date('d/m/Y', strtotime($project->created_at))); ?>
                                         </small>
                                         <?php if (isset($project->progress_percentage) && $project->progress_percentage > 0): ?>
                                             <div class="ql-progress-bar">
@@ -510,21 +510,21 @@ class QL_Admin {
                                 
                                 <div class="ql-project-actions">
                                     <?php if ($stats['quadros'] > 0): ?>
-                                        <a href="<?php echo admin_url('admin.php?page=quilombo-laboratorio-project-boards&project_id=' . $project->id); ?>" 
+                                        <a href="<?php echo admin_url('admin.php?page=quilombo-lab-project-boards&project_id=' . $project->id); ?>" 
                                            class="button button-primary">
-                                            <?php _e('Ver Quadros', 'quilombo-laboratorio'); ?>
+                                            <?php _e('Ver Quadros', 'quilombo-lab'); ?>
                                         </a>
                                     <?php else: ?>
                                         <a href="<?php echo add_query_arg(['create_board' => '1', 'project_id' => $project->id]); ?>" 
                                            class="button button-primary">
-                                            <?php _e('Criar Quadro', 'quilombo-laboratorio'); ?>
+                                            <?php _e('Criar Quadro', 'quilombo-lab'); ?>
                                         </a>
                                     <?php endif; ?>
                                     
                                     <?php if (current_user_can('manage_options')): ?>
                                         <a href="<?php echo add_query_arg(['edit_project' => '1', 'project_id' => $project->id]); ?>" 
                                            class="button">
-                                            <?php _e('✏️ Editar', 'quilombo-laboratorio'); ?>
+                                            <?php _e('✏️ Editar', 'quilombo-lab'); ?>
                                         </a>
                                         
                                         <?php 
@@ -536,13 +536,13 @@ class QL_Admin {
                                         <?php if (!$is_moodle_project && !$is_collective): ?>
                                             <button type="button" class="button button-link-delete" 
                                                     onclick="qlConfirmDeleteProject(<?php echo $project->id; ?>, '<?php echo esc_js($project->name); ?>')">
-                                                <?php _e('🗑️ Excluir', 'quilombo-laboratorio'); ?>
+                                                <?php _e('🗑️ Excluir', 'quilombo-lab'); ?>
                                             </button>
                                         <?php endif; ?>
                                     <?php endif; ?>
                                     
                                     <button class="button" onclick="qlViewProjectDetails(<?php echo $project->id; ?>)">
-                                        <?php _e('👁️ Detalhes', 'quilombo-laboratorio'); ?>
+                                        <?php _e('👁️ Detalhes', 'quilombo-lab'); ?>
                                     </button>
                                 </div>
                                 
@@ -562,21 +562,21 @@ class QL_Admin {
                     </div>
                 <?php else: ?>
                     <div class="ql-empty-state">
-                        <h2><?php _e('Nenhum projeto encontrado', 'quilombo-laboratorio'); ?></h2>
-                        <p><?php _e('Parece que ainda não há projetos criados no sistema.', 'quilombo-laboratorio'); ?></p>
+                        <h2><?php _e('Nenhum projeto encontrado', 'quilombo-lab'); ?></h2>
+                        <p><?php _e('Parece que ainda não há projetos criados no sistema.', 'quilombo-lab'); ?></p>
                         <?php if (current_user_can('manage_options')): ?>
                             <p>
                                 <a href="<?php echo add_query_arg('create_demo', '1'); ?>" class="button button-primary">
-                                    <?php _e('Criar Projeto de Demonstração', 'quilombo-laboratorio'); ?>
+                                    <?php _e('Criar Projeto de Demonstração', 'quilombo-lab'); ?>
                                 </a>
                             </p>
                         <?php endif; ?>
-                        <p><em><?php _e('Projetos são criados automaticamente quando trilhas são sincronizadas do Moodle ou através do Plugin Gestão Coletiva.', 'quilombo-laboratorio'); ?></em></p>
+                        <p><em><?php _e('Projetos são criados automaticamente quando trilhas são sincronizadas do Moodle ou através do Plugin Gestão Coletiva.', 'quilombo-lab'); ?></em></p>
                     </div>
                 <?php endif; ?>
             <?php else: ?>
                 <div class="notice notice-warning">
-                    <p><?php _e('A classe QL_Project não está disponível. Verifique se o plugin foi instalado corretamente.', 'quilombo-laboratorio'); ?></p>
+                    <p><?php _e('A classe QL_Project não está disponível. Verifique se o plugin foi instalado corretamente.', 'quilombo-lab'); ?></p>
                 </div>
             <?php endif; ?>
         </div>
@@ -768,7 +768,7 @@ class QL_Admin {
     public function status_page() {
         ?>
         <div class="wrap">
-            <h1><?php _e('Status do Sistema', 'quilombo-laboratorio'); ?></h1>
+            <h1><?php _e('Status do Sistema', 'quilombo-lab'); ?></h1>
             
             <?php if (class_exists('QL_Status')): ?>
                 <?php 
@@ -777,18 +777,18 @@ class QL_Admin {
                 
                 <div class="ql-status-actions" style="margin-top: 20px;">
                     <button class="button" onclick="location.reload()">
-                        <?php _e('🔄 Atualizar Status', 'quilombo-laboratorio'); ?>
+                        <?php _e('🔄 Atualizar Status', 'quilombo-lab'); ?>
                     </button>
                     
                     <?php if ($can_activate): ?>
                         <span style="color: green; margin-left: 15px;">
-                            <strong><?php _e('✅ Sistema funcionando corretamente!', 'quilombo-laboratorio'); ?></strong>
+                            <strong><?php _e('✅ Sistema funcionando corretamente!', 'quilombo-lab'); ?></strong>
                         </span>
                     <?php endif; ?>
                 </div>
             <?php else: ?>
                 <div class="notice notice-error">
-                    <p><?php _e('Classe QL_Status não disponível. Verifique a instalação do plugin.', 'quilombo-laboratorio'); ?></p>
+                    <p><?php _e('Classe QL_Status não disponível. Verifique a instalação do plugin.', 'quilombo-lab'); ?></p>
                 </div>
             <?php endif; ?>
         </div>
@@ -1038,7 +1038,7 @@ class QL_Admin {
                 'quilombo_laboratorio_settings',
                 'projeto_coletivo_updated',
                 sprintf(
-                    __('Projeto "%s" agora é responsável pela gestão do coletivo! %s', 'quilombo-laboratorio'), 
+                    __('Projeto "%s" agora é responsável pela gestão do coletivo! %s', 'quilombo-lab'), 
                     $projeto->name,
                     $projeto->moodle_course_id ? "Trilha Moodle ID {$projeto->moodle_course_id} automaticamente configurada." : "Projeto independente (sem trilha Moodle)."
                 ),
@@ -1053,7 +1053,7 @@ class QL_Admin {
             add_settings_error(
                 'quilombo_laboratorio_settings',
                 'projeto_coletivo_error',
-                __('Erro ao configurar projeto do coletivo: ', 'quilombo-laboratorio') . $e->getMessage(),
+                __('Erro ao configurar projeto do coletivo: ', 'quilombo-lab') . $e->getMessage(),
                 'error'
             );
         }
@@ -1132,7 +1132,7 @@ class QL_Admin {
                     add_settings_error(
                         'quilombo_laboratorio_settings',
                         'trilha_coletivo_updated',
-                        sprintf(__('Trilha do coletivo alterada com sucesso! Projeto #%d agora é o projeto coletivo único.', 'quilombo-laboratorio'), $project_id),
+                        sprintf(__('Trilha do coletivo alterada com sucesso! Projeto #%d agora é o projeto coletivo único.', 'quilombo-lab'), $project_id),
                         'updated'
                     );
                 } else {
@@ -1141,7 +1141,7 @@ class QL_Admin {
                     add_settings_error(
                         'quilombo_laboratorio_settings',
                         'trilha_coletivo_no_project',
-                        __('Trilha coletiva configurada, mas ainda não há projeto correspondente. Execute a sincronização Moodle.', 'quilombo-laboratorio'),
+                        __('Trilha coletiva configurada, mas ainda não há projeto correspondente. Execute a sincronização Moodle.', 'quilombo-lab'),
                         'notice-warning'
                     );
                 }
@@ -1151,7 +1151,7 @@ class QL_Admin {
                 add_settings_error(
                     'quilombo_laboratorio_settings',
                     'trilha_coletivo_not_found',
-                    __('Trilha selecionada não foi encontrada. Execute a sincronização Moodle primeiro.', 'quilombo-laboratorio'),
+                    __('Trilha selecionada não foi encontrada. Execute a sincronização Moodle primeiro.', 'quilombo-lab'),
                     'error'
                 );
             }
@@ -1162,7 +1162,7 @@ class QL_Admin {
             add_settings_error(
                 'quilombo_laboratorio_settings',
                 'trilha_coletivo_error',
-                __('Erro ao alterar trilha coletiva. Verifique os logs.', 'quilombo-laboratorio'),
+                __('Erro ao alterar trilha coletiva. Verifique os logs.', 'quilombo-lab'),
                 'error'
             );
         }
@@ -1234,7 +1234,7 @@ class QL_Admin {
      */
     private function create_demo_project() {
         if (!class_exists('QL_Project')) {
-            wp_redirect(admin_url('admin.php?page=quilombo-laboratorio-projetos&message=error'));
+            wp_redirect(admin_url('admin.php?page=quilombo-lab-projetos&message=error'));
             exit;
         }
         
@@ -1244,7 +1244,7 @@ class QL_Admin {
             // Verificar se já existe projeto demo
             $existing = $wpdb->get_var("SELECT id FROM {$wpdb->prefix}ql_projects WHERE name LIKE 'Projeto Demo%'");
             if ($existing) {
-                wp_redirect(admin_url('admin.php?page=quilombo-laboratorio-projetos&message=demo_exists'));
+                wp_redirect(admin_url('admin.php?page=quilombo-lab-projetos&message=demo_exists'));
                 exit;
             }
             
@@ -1361,12 +1361,12 @@ class QL_Admin {
             
             $wpdb->query('COMMIT');
             
-            wp_redirect(admin_url('admin.php?page=quilombo-laboratorio-projetos&message=demo_created'));
+            wp_redirect(admin_url('admin.php?page=quilombo-lab-projetos&message=demo_created'));
             exit;
             
         } catch (Exception $e) {
             $wpdb->query('ROLLBACK');
-            wp_redirect(admin_url('admin.php?page=quilombo-laboratorio-projetos&message=error'));
+            wp_redirect(admin_url('admin.php?page=quilombo-lab-projetos&message=error'));
             exit;
         }
     }
@@ -1402,7 +1402,7 @@ class QL_Admin {
         $project_id = isset($_GET['project_id']) ? intval($_GET['project_id']) : 0;
         
         if (!$project_id) {
-            wp_redirect(admin_url('admin.php?page=quilombo-laboratorio-projetos'));
+            wp_redirect(admin_url('admin.php?page=quilombo-lab-projetos'));
             exit;
         }
         
@@ -1415,7 +1415,7 @@ class QL_Admin {
         ));
         
         if (!$project) {
-            wp_redirect(admin_url('admin.php?page=quilombo-laboratorio-projetos'));
+            wp_redirect(admin_url('admin.php?page=quilombo-lab-projetos'));
             exit;
         }
         
@@ -1428,9 +1428,9 @@ class QL_Admin {
         ?>
         <div class="wrap">
             <h1>
-                <?php printf(__('Quadros do Projeto: %s', 'quilombo-laboratorio'), esc_html($project->name)); ?>
-                <a href="<?php echo admin_url('admin.php?page=quilombo-laboratorio-projetos'); ?>" class="page-title-action">
-                    ← <?php _e('Voltar aos Projetos', 'quilombo-laboratorio'); ?>
+                <?php printf(__('Quadros do Projeto: %s', 'quilombo-lab'), esc_html($project->name)); ?>
+                <a href="<?php echo admin_url('admin.php?page=quilombo-lab-projetos'); ?>" class="page-title-action">
+                    ← <?php _e('Voltar aos Projetos', 'quilombo-lab'); ?>
                 </a>
             </h1>
             
@@ -1455,7 +1455,7 @@ class QL_Admin {
                                 <h2><?php echo esc_html($quadro->name); ?></h2>
                                 <div class="ql-board-actions">
                                     <button class="button button-primary" onclick="qlOpenQuadro(<?php echo $quadro->id; ?>)">
-                                        📋 <?php _e('Abrir Quadro', 'quilombo-laboratorio'); ?>
+                                        📋 <?php _e('Abrir Quadro', 'quilombo-lab'); ?>
                                     </button>
                                 </div>
                             </div>
@@ -1475,7 +1475,7 @@ class QL_Admin {
                                         <?php endforeach; ?>
                                     </div>
                                 <?php else: ?>
-                                    <p class="ql-no-columns"><?php _e('Nenhuma coluna criada ainda.', 'quilombo-laboratorio'); ?></p>
+                                    <p class="ql-no-columns"><?php _e('Nenhuma coluna criada ainda.', 'quilombo-lab'); ?></p>
                                 <?php endif; ?>
                             </div>
                         </div>
@@ -1483,8 +1483,8 @@ class QL_Admin {
                 </div>
             <?php else: ?>
                 <div class="ql-empty-state">
-                    <h2><?php _e('Nenhum board encontrado', 'quilombo-laboratorio'); ?></h2>
-                    <p><?php _e('Este projeto ainda não possui boards criados.', 'quilombo-laboratorio'); ?></p>
+                    <h2><?php _e('Nenhum board encontrado', 'quilombo-lab'); ?></h2>
+                    <p><?php _e('Este projeto ainda não possui boards criados.', 'quilombo-lab'); ?></p>
                 </div>
             <?php endif; ?>
         </div>
@@ -1573,7 +1573,7 @@ class QL_Admin {
         function qlOpenQuadro(quadroId) {
             console.log('qlOpenQuadro chamada com ID:', quadroId);
             // Redirecionar para página do Kanban
-            var url = '<?php echo admin_url('admin.php?page=quilombo-laboratorio-kanban&board_id='); ?>' + quadroId;
+            var url = '<?php echo admin_url('admin.php?page=quilombo-lab-kanban&board_id='); ?>' + quadroId;
             console.log('Redirecionando para:', url);
             window.location.href = url;
         }
@@ -1622,7 +1622,7 @@ class QL_Admin {
         
         if (!$board_id) {
             error_log("Board ID não fornecido, redirecionando para projetos");
-            wp_redirect(admin_url('admin.php?page=quilombo-laboratorio-projetos'));
+            wp_redirect(admin_url('admin.php?page=quilombo-lab-projetos'));
             exit;
         }
         
@@ -1638,7 +1638,7 @@ class QL_Admin {
         ));
         
         if (!$board) {
-            wp_redirect(admin_url('admin.php?page=quilombo-laboratorio-projetos'));
+            wp_redirect(admin_url('admin.php?page=quilombo-lab-projetos'));
             exit;
         }
         
@@ -1682,9 +1682,9 @@ class QL_Admin {
         ?>
         <div class="wrap">
             <h1>
-                <?php printf(__('%s - %s', 'quilombo-laboratorio'), esc_html($board->project_name), esc_html($board->name)); ?>
-                <a href="<?php echo admin_url('admin.php?page=quilombo-laboratorio-project-boards&project_id=' . $board->project_id); ?>" class="page-title-action">
-                    ← <?php _e('Voltar aos Quadros', 'quilombo-laboratorio'); ?>
+                <?php printf(__('%s - %s', 'quilombo-lab'), esc_html($board->project_name), esc_html($board->name)); ?>
+                <a href="<?php echo admin_url('admin.php?page=quilombo-lab-project-boards&project_id=' . $board->project_id); ?>" class="page-title-action">
+                    ← <?php _e('Voltar aos Quadros', 'quilombo-lab'); ?>
                 </a>
             </h1>
             
@@ -3378,7 +3378,7 @@ class QL_Admin {
         window.ql_admin = {
             ajax_url: '<?php echo admin_url('admin-ajax.php'); ?>',
             nonce: '<?php echo wp_create_nonce('ql_admin_nonce'); ?>',
-            rest_url: '<?php echo rest_url('quilombo-laboratorio/v1/'); ?>',
+            rest_url: '<?php echo rest_url('quilombo-lab/v1/'); ?>',
             rest_nonce: '<?php echo wp_create_nonce('wp_rest'); ?>',
             board_id: <?php echo $board_id; ?>,
             default_board_id: <?php echo intval(QL_Config::get('general', 'default_board_id', 0)); ?>,
@@ -3759,9 +3759,9 @@ class QL_Admin {
         
         ?>
         <div class="wrap">
-            <h1>🎯 <?php _e('Dashboard Unificado', 'quilombo-laboratorio'); ?></h1>
+            <h1>🎯 <?php _e('Dashboard Unificado', 'quilombo-lab'); ?></h1>
             <p class="description">
-                <?php _e('Visão geral integrada do ecossistema Quilombo Ciência: Moodle ↔ WordPress com gestão de projetos nativa', 'quilombo-laboratorio'); ?>
+                <?php _e('Visão geral integrada do ecossistema Quilombo Ciência: Moodle ↔ WordPress com gestão de projetos nativa', 'quilombo-lab'); ?>
             </p>
             
             <!-- Cards de Estatísticas -->
@@ -3889,7 +3889,7 @@ class QL_Admin {
                                         </span>
                                     </div>
                                     <div class="ql-project-actions">
-                                        <a href="<?php echo admin_url('admin.php?page=quilombo-laboratorio-project-boards&project_id=' . $project->id); ?>" 
+                                        <a href="<?php echo admin_url('admin.php?page=quilombo-lab-project-boards&project_id=' . $project->id); ?>" 
                                            class="button button-small">Ver Quadros</a>
                                     </div>
                                 </div>
@@ -3898,7 +3898,7 @@ class QL_Admin {
                     <?php else: ?>
                         <p class="ql-empty-state">
                             📝 Você ainda não está atribuído a nenhum projeto.
-                            <br><a href="<?php echo admin_url('admin.php?page=quilombo-laboratorio-projetos'); ?>">Ver todos os projetos</a>
+                            <br><a href="<?php echo admin_url('admin.php?page=quilombo-lab-projetos'); ?>">Ver todos os projetos</a>
                         </p>
                     <?php endif; ?>
                 </div>
@@ -3926,13 +3926,13 @@ class QL_Admin {
                                 </div>
                             <?php endforeach; ?>
                         </div>
-                        <a href="<?php echo admin_url('admin.php?page=quilombo-laboratorio-projetos'); ?>" class="button">
+                        <a href="<?php echo admin_url('admin.php?page=quilombo-lab-projetos'); ?>" class="button">
                             Ver Todas as Tarefas
                         </a>
                     <?php else: ?>
                         <p class="ql-empty-state">
                             🎉 Você não tem tarefas pendentes!
-                            <br><a href="<?php echo admin_url('admin.php?page=quilombo-laboratorio-projetos'); ?>">Explorar projetos</a>
+                            <br><a href="<?php echo admin_url('admin.php?page=quilombo-lab-projetos'); ?>">Explorar projetos</a>
                         </p>
                     <?php endif; ?>
                 </div>
@@ -4607,7 +4607,7 @@ class QL_Admin {
         if (isset($_POST['delete_project']) && wp_verify_nonce($_POST['_wpnonce'], 'delete_project')) {
             $project_id = intval($_POST['project_id']);
             $this->delete_project($project_id);
-            wp_redirect(add_query_arg('message', 'project_deleted', admin_url('admin.php?page=quilombo-laboratorio-projetos')));
+            wp_redirect(add_query_arg('message', 'project_deleted', admin_url('admin.php?page=quilombo-lab-projetos')));
             exit;
         }
         
@@ -4615,7 +4615,7 @@ class QL_Admin {
         if (isset($_POST['update_project']) && wp_verify_nonce($_POST['_wpnonce'], 'edit_project')) {
             $project_id = intval($_POST['project_id']);
             $this->update_project($project_id, $_POST);
-            wp_redirect(add_query_arg(['message' => 'project_updated', 'project_id' => $project_id], admin_url('admin.php?page=quilombo-laboratorio-projetos')));
+            wp_redirect(add_query_arg(['message' => 'project_updated', 'project_id' => $project_id], admin_url('admin.php?page=quilombo-lab-projetos')));
             exit;
         }
     }
@@ -4635,7 +4635,7 @@ class QL_Admin {
         ));
         
         if (!$project) {
-            wp_die(__('Projeto não encontrado.', 'quilombo-laboratorio'));
+            wp_die(__('Projeto não encontrado.', 'quilombo-lab'));
         }
         
         $is_moodle_project = !empty($project->moodle_course_id);
@@ -4644,23 +4644,23 @@ class QL_Admin {
         
         ?>
         <div class="wrap">
-            <h1><?php _e('Editar Projeto', 'quilombo-laboratorio'); ?>
-                <a href="<?php echo admin_url('admin.php?page=quilombo-laboratorio-projetos'); ?>" class="page-title-action">
-                    <?php _e('← Voltar aos Projetos', 'quilombo-laboratorio'); ?>
+            <h1><?php _e('Editar Projeto', 'quilombo-lab'); ?>
+                <a href="<?php echo admin_url('admin.php?page=quilombo-lab-projetos'); ?>" class="page-title-action">
+                    <?php _e('← Voltar aos Projetos', 'quilombo-lab'); ?>
                 </a>
             </h1>
             
             <?php if ($is_moodle_project): ?>
                 <div class="notice notice-info">
-                    <p><strong><?php _e('⚠️ Projeto sincronizado do Moodle', 'quilombo-laboratorio'); ?></strong></p>
-                    <p><?php _e('Campos importados do Moodle não podem ser alterados para evitar divergências. Apenas informações locais podem ser editadas.', 'quilombo-laboratorio'); ?></p>
+                    <p><strong><?php _e('⚠️ Projeto sincronizado do Moodle', 'quilombo-lab'); ?></strong></p>
+                    <p><?php _e('Campos importados do Moodle não podem ser alterados para evitar divergências. Apenas informações locais podem ser editadas.', 'quilombo-lab'); ?></p>
                 </div>
             <?php endif; ?>
             
             <?php if ($is_collective): ?>
                 <div class="notice notice-warning">
-                    <p><strong><?php _e('🏛️ Projeto do Coletivo', 'quilombo-laboratorio'); ?></strong></p>
-                    <p><?php _e('Este é o projeto responsável pela gestão do coletivo. Algumas alterações podem afetar funcionalidades importantes.', 'quilombo-laboratorio'); ?></p>
+                    <p><strong><?php _e('🏛️ Projeto do Coletivo', 'quilombo-lab'); ?></strong></p>
+                    <p><?php _e('Este é o projeto responsável pela gestão do coletivo. Algumas alterações podem afetar funcionalidades importantes.', 'quilombo-lab'); ?></p>
                 </div>
             <?php endif; ?>
             
@@ -4670,73 +4670,73 @@ class QL_Admin {
                 
                 <table class="form-table">
                     <tr>
-                        <th scope="row"><?php _e('Nome do Projeto', 'quilombo-laboratorio'); ?></th>
+                        <th scope="row"><?php _e('Nome do Projeto', 'quilombo-lab'); ?></th>
                         <td>
                             <input type="text" name="name" value="<?php echo esc_attr($project->name); ?>" 
                                    class="regular-text" <?php echo $is_moodle_project ? 'readonly' : ''; ?> />
                             <?php if ($is_moodle_project): ?>
-                                <p class="description"><?php _e('Nome importado do Moodle - não pode ser alterado', 'quilombo-laboratorio'); ?></p>
+                                <p class="description"><?php _e('Nome importado do Moodle - não pode ser alterado', 'quilombo-lab'); ?></p>
                             <?php endif; ?>
                         </td>
                     </tr>
                     
                     <tr>
-                        <th scope="row"><?php _e('Slug', 'quilombo-laboratorio'); ?></th>
+                        <th scope="row"><?php _e('Slug', 'quilombo-lab'); ?></th>
                         <td>
                             <input type="text" name="slug" value="<?php echo esc_attr($project->slug); ?>" 
                                    class="regular-text" <?php echo $is_moodle_project ? 'readonly' : ''; ?> />
                             <?php if ($is_moodle_project): ?>
-                                <p class="description"><?php _e('Slug gerado automaticamente do Moodle', 'quilombo-laboratorio'); ?></p>
+                                <p class="description"><?php _e('Slug gerado automaticamente do Moodle', 'quilombo-lab'); ?></p>
                             <?php endif; ?>
                         </td>
                     </tr>
                     
                     <tr>
-                        <th scope="row"><?php _e('Descrição', 'quilombo-laboratorio'); ?></th>
+                        <th scope="row"><?php _e('Descrição', 'quilombo-lab'); ?></th>
                         <td>
                             <textarea name="description" rows="4" cols="50" class="large-text" 
                                       <?php echo $is_moodle_project ? 'readonly' : ''; ?>><?php echo esc_textarea($project->description); ?></textarea>
                             <?php if ($is_moodle_project): ?>
-                                <p class="description"><?php _e('Descrição importada do Moodle - não pode ser alterada', 'quilombo-laboratorio'); ?></p>
+                                <p class="description"><?php _e('Descrição importada do Moodle - não pode ser alterada', 'quilombo-lab'); ?></p>
                             <?php endif; ?>
                         </td>
                     </tr>
                     
                     <tr>
-                        <th scope="row"><?php _e('Status', 'quilombo-laboratorio'); ?></th>
+                        <th scope="row"><?php _e('Status', 'quilombo-lab'); ?></th>
                         <td>
                             <select name="status">
-                                <option value="active" <?php selected($project->status, 'active'); ?>><?php _e('Ativo', 'quilombo-laboratorio'); ?></option>
-                                <option value="on_hold" <?php selected($project->status, 'on_hold'); ?>><?php _e('Em Pausa', 'quilombo-laboratorio'); ?></option>
-                                <option value="completed" <?php selected($project->status, 'completed'); ?>><?php _e('Concluído', 'quilombo-laboratorio'); ?></option>
+                                <option value="active" <?php selected($project->status, 'active'); ?>><?php _e('Ativo', 'quilombo-lab'); ?></option>
+                                <option value="on_hold" <?php selected($project->status, 'on_hold'); ?>><?php _e('Em Pausa', 'quilombo-lab'); ?></option>
+                                <option value="completed" <?php selected($project->status, 'completed'); ?>><?php _e('Concluído', 'quilombo-lab'); ?></option>
                             </select>
                         </td>
                     </tr>
                     
                     <tr>
-                        <th scope="row"><?php _e('Visibilidade', 'quilombo-laboratorio'); ?></th>
+                        <th scope="row"><?php _e('Visibilidade', 'quilombo-lab'); ?></th>
                         <td>
                             <select name="visibility">
-                                <option value="public" <?php selected($project->visibility, 'public'); ?>><?php _e('Público', 'quilombo-laboratorio'); ?></option>
-                                <option value="private" <?php selected($project->visibility, 'private'); ?>><?php _e('Privado', 'quilombo-laboratorio'); ?></option>
-                                <option value="collective" <?php selected($project->visibility, 'collective'); ?>><?php _e('Coletivo', 'quilombo-laboratorio'); ?></option>
+                                <option value="public" <?php selected($project->visibility, 'public'); ?>><?php _e('Público', 'quilombo-lab'); ?></option>
+                                <option value="private" <?php selected($project->visibility, 'private'); ?>><?php _e('Privado', 'quilombo-lab'); ?></option>
+                                <option value="collective" <?php selected($project->visibility, 'collective'); ?>><?php _e('Coletivo', 'quilombo-lab'); ?></option>
                             </select>
                         </td>
                     </tr>
                     
                     <tr>
-                        <th scope="row"><?php _e('Prioridade', 'quilombo-laboratorio'); ?></th>
+                        <th scope="row"><?php _e('Prioridade', 'quilombo-lab'); ?></th>
                         <td>
                             <select name="priority">
-                                <option value="low" <?php selected($project->priority, 'low'); ?>><?php _e('Baixa', 'quilombo-laboratorio'); ?></option>
-                                <option value="normal" <?php selected($project->priority, 'normal'); ?>><?php _e('Normal', 'quilombo-laboratorio'); ?></option>
-                                <option value="high" <?php selected($project->priority, 'high'); ?>><?php _e('Alta', 'quilombo-laboratorio'); ?></option>
+                                <option value="low" <?php selected($project->priority, 'low'); ?>><?php _e('Baixa', 'quilombo-lab'); ?></option>
+                                <option value="normal" <?php selected($project->priority, 'normal'); ?>><?php _e('Normal', 'quilombo-lab'); ?></option>
+                                <option value="high" <?php selected($project->priority, 'high'); ?>><?php _e('Alta', 'quilombo-lab'); ?></option>
                             </select>
                         </td>
                     </tr>
                     
                     <tr>
-                        <th scope="row"><?php _e('Cor do Projeto', 'quilombo-laboratorio'); ?></th>
+                        <th scope="row"><?php _e('Cor do Projeto', 'quilombo-lab'); ?></th>
                         <td>
                             <input type="color" name="color" value="<?php echo esc_attr($project->color ?: '#3498db'); ?>" />
                         </td>
@@ -4744,13 +4744,13 @@ class QL_Admin {
                     
                     <?php if ($is_moodle_project): ?>
                         <tr>
-                            <th scope="row"><?php _e('Trilha Moodle', 'quilombo-laboratorio'); ?></th>
+                            <th scope="row"><?php _e('Trilha Moodle', 'quilombo-lab'); ?></th>
                             <td>
                                 <strong>ID: <?php echo $project->moodle_course_id; ?></strong>
                                 <?php if ($project->course_name): ?>
                                     <br><em><?php echo esc_html($project->course_name); ?></em>
                                 <?php endif; ?>
-                                <p class="description"><?php _e('Projeto sincronizado automaticamente do Moodle', 'quilombo-laboratorio'); ?></p>
+                                <p class="description"><?php _e('Projeto sincronizado automaticamente do Moodle', 'quilombo-lab'); ?></p>
                             </td>
                         </tr>
                     <?php endif; ?>
@@ -4758,24 +4758,24 @@ class QL_Admin {
                 </table>
                 
                 <div class="ql-form-actions">
-                    <?php submit_button(__('Atualizar Projeto', 'quilombo-laboratorio'), 'primary', 'update_project'); ?>
+                    <?php submit_button(__('Atualizar Projeto', 'quilombo-lab'), 'primary', 'update_project'); ?>
                     
                     <?php if (!$is_moodle_project && !$is_collective): ?>
                         <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #ccd0d4;">
-                            <h3><?php _e('Zona de Perigo', 'quilombo-laboratorio'); ?></h3>
-                            <p><?php _e('Excluir este projeto removerá permanentemente todos os dados associados (quadros, tarefas, anexos, etc.).', 'quilombo-laboratorio'); ?></p>
+                            <h3><?php _e('Zona de Perigo', 'quilombo-lab'); ?></h3>
+                            <p><?php _e('Excluir este projeto removerá permanentemente todos os dados associados (quadros, tarefas, anexos, etc.).', 'quilombo-lab'); ?></p>
                             <button type="button" class="button button-link-delete" 
                                     onclick="qlConfirmDeleteProject(<?php echo $project_id; ?>, '<?php echo esc_js($project->name); ?>')">
-                                <?php _e('🗑️ Excluir Projeto Permanentemente', 'quilombo-laboratorio'); ?>
+                                <?php _e('🗑️ Excluir Projeto Permanentemente', 'quilombo-lab'); ?>
                             </button>
                         </div>
                     <?php elseif ($is_moodle_project): ?>
                         <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #ccd0d4;">
-                            <p><em><?php _e('Projetos sincronizados do Moodle não podem ser excluídos. Para remover, desative a sincronização no Moodle.', 'quilombo-laboratorio'); ?></em></p>
+                            <p><em><?php _e('Projetos sincronizados do Moodle não podem ser excluídos. Para remover, desative a sincronização no Moodle.', 'quilombo-lab'); ?></em></p>
                         </div>
                     <?php elseif ($is_collective): ?>
                         <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #ccd0d4;">
-                            <p><em><?php _e('O projeto do coletivo não pode ser excluído. Para alterar, configure outro projeto como responsável pela gestão do coletivo.', 'quilombo-laboratorio'); ?></em></p>
+                            <p><em><?php _e('O projeto do coletivo não pode ser excluído. Para alterar, configure outro projeto como responsável pela gestão do coletivo.', 'quilombo-lab'); ?></em></p>
                         </div>
                     <?php endif; ?>
                 </div>
@@ -4836,7 +4836,7 @@ class QL_Admin {
         ));
         
         if (!$project) {
-            wp_die(__('Projeto não encontrado.', 'quilombo-laboratorio'));
+            wp_die(__('Projeto não encontrado.', 'quilombo-lab'));
         }
         
         $is_moodle_project = !empty($project->moodle_course_id);
@@ -4886,7 +4886,7 @@ class QL_Admin {
         );
         
         if ($result === false) {
-            wp_die(__('Erro ao atualizar projeto.', 'quilombo-laboratorio'));
+            wp_die(__('Erro ao atualizar projeto.', 'quilombo-lab'));
         }
         
         do_action('ql_project_updated', $project_id, $update_data);
@@ -4904,7 +4904,7 @@ class QL_Admin {
         ));
         
         if (!$project) {
-            wp_die(__('Projeto não encontrado.', 'quilombo-laboratorio'));
+            wp_die(__('Projeto não encontrado.', 'quilombo-lab'));
         }
         
         // Verificações de segurança
@@ -4913,11 +4913,11 @@ class QL_Admin {
         $is_collective = $settings['is_collective_project'] ?? false;
         
         if ($is_moodle_project) {
-            wp_die(__('Projetos sincronizados do Moodle não podem ser excluídos.', 'quilombo-laboratorio'));
+            wp_die(__('Projetos sincronizados do Moodle não podem ser excluídos.', 'quilombo-lab'));
         }
         
         if ($is_collective) {
-            wp_die(__('O projeto do coletivo não pode ser excluído.', 'quilombo-laboratorio'));
+            wp_die(__('O projeto do coletivo não pode ser excluído.', 'quilombo-lab'));
         }
         
         $wpdb->query('START TRANSACTION');
@@ -4957,7 +4957,7 @@ class QL_Admin {
             
         } catch (Exception $e) {
             $wpdb->query('ROLLBACK');
-            wp_die(__('Erro ao excluir projeto: ', 'quilombo-laboratorio') . $e->getMessage());
+            wp_die(__('Erro ao excluir projeto: ', 'quilombo-lab') . $e->getMessage());
         }
     }
 }

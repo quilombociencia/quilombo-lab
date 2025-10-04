@@ -1,4 +1,4 @@
-# 🎯 Sistema de Configurações - Quilombo Laboratório
+# 🎯 Sistema de Configurações - Quilombo Lab
 
 ## 📋 Visão Geral
 
@@ -86,7 +86,7 @@ QL_Config::get_default_project_visibility()
 ## 🔄 Migração Automática
 
 ### **Executar Migração**
-1. Acesse: `/wp-content/plugins/quilombo-laboratorio/migration-hardcoded-to-settings.php`
+1. Acesse: `/wp-content/plugins/quilombo-lab/migration-hardcoded-to-settings.php`
 2. Execute o script como administrador
 3. Revise as configurações migradas
 
@@ -150,9 +150,9 @@ Interface administrativa para gerenciamento de configurações
 [
     'max_file_upload_size' => 10,
     'allowed_file_types' => 'jpg,jpeg,png,gif,pdf,doc,docx,txt,zip',
-    'upload_directory' => 'quilombo-laboratorio',
+    'upload_directory' => 'quilombo-lab',
     'kanboard_db_path' => '/wp-content/kanboard/db.sqlite',
-    'logs_directory' => '/wp-content/logs/quilombo-laboratorio',
+    'logs_directory' => '/wp-content/logs/quilombo-lab',
     'enable_public_boards' => false,
     'require_login_for_view' => true
 ]

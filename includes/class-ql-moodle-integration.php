@@ -79,11 +79,11 @@ class QL_Moodle_Integration {
     public function add_admin_menu() {
         if (current_user_can('manage_options')) {
             add_submenu_page(
-                'quilombo-laboratorio',
-                __('Integração Moodle', 'quilombo-laboratorio'),
-                __('🎓 Moodle', 'quilombo-laboratorio'),
+                'quilombo-lab',
+                __('Integração Moodle', 'quilombo-lab'),
+                __('🎓 Moodle', 'quilombo-lab'),
                 'manage_options',
-                'quilombo-laboratorio-moodle',
+                'quilombo-lab-moodle',
                 [$this, 'moodle_admin_page']
             );
         }
@@ -97,24 +97,24 @@ class QL_Moodle_Integration {
         
         ?>
         <div class="wrap">
-            <h1><?php _e('Integração com Moodle', 'quilombo-laboratorio'); ?></h1>
+            <h1><?php _e('Integração com Moodle', 'quilombo-lab'); ?></h1>
             
             <div class="ql-moodle-status">
-                <h2><?php _e('Status da Conexão', 'quilombo-laboratorio'); ?></h2>
+                <h2><?php _e('Status da Conexão', 'quilombo-lab'); ?></h2>
                 
                 <?php if ($connection_status['success']): ?>
                     <div class="notice notice-success">
-                        <p>✅ <strong><?php _e('Conectado ao Moodle', 'quilombo-laboratorio'); ?></strong></p>
-                        <p><?php printf(__('Site: %s', 'quilombo-laboratorio'), esc_url($this->moodle_url)); ?></p>
-                        <p><?php printf(__('Versão: %s', 'quilombo-laboratorio'), esc_html($connection_status['data']['sitename'] ?? 'N/A')); ?></p>
+                        <p>✅ <strong><?php _e('Conectado ao Moodle', 'quilombo-lab'); ?></strong></p>
+                        <p><?php printf(__('Site: %s', 'quilombo-lab'), esc_url($this->moodle_url)); ?></p>
+                        <p><?php printf(__('Versão: %s', 'quilombo-lab'), esc_html($connection_status['data']['sitename'] ?? 'N/A')); ?></p>
                     </div>
                 <?php else: ?>
                     <div class="notice notice-error">
-                        <p>❌ <strong><?php _e('Erro na conexão com Moodle', 'quilombo-laboratorio'); ?></strong></p>
+                        <p>❌ <strong><?php _e('Erro na conexão com Moodle', 'quilombo-lab'); ?></strong></p>
                         <p><?php echo esc_html($connection_status['message']); ?></p>
                         <p>
-                            <a href="<?php echo admin_url('admin.php?page=quilombo-laboratorio-settings'); ?>" class="button">
-                                <?php _e('Verificar Configurações', 'quilombo-laboratorio'); ?>
+                            <a href="<?php echo admin_url('admin.php?page=quilombo-lab-settings'); ?>" class="button">
+                                <?php _e('Verificar Configurações', 'quilombo-lab'); ?>
                             </a>
                         </p>
                     </div>
@@ -123,23 +123,23 @@ class QL_Moodle_Integration {
             
             <?php if ($connection_status['success']): ?>
                 <div class="ql-moodle-actions">
-                    <h2><?php _e('Sincronização de Trilhas', 'quilombo-laboratorio'); ?></h2>
+                    <h2><?php _e('Sincronização de Trilhas', 'quilombo-lab'); ?></h2>
                     
                     <div class="ql-sync-actions">
                         <button id="ql-test-connection" class="button">
-                            <?php _e('🔄 Testar Conexão', 'quilombo-laboratorio'); ?>
+                            <?php _e('🔄 Testar Conexão', 'quilombo-lab'); ?>
                         </button>
                         
                         <button id="ql-sync-courses" class="button button-primary">
-                            <?php _e('📥 Sincronizar Cursos/Trilhas', 'quilombo-laboratorio'); ?>
+                            <?php _e('📥 Sincronizar Cursos/Trilhas', 'quilombo-lab'); ?>
                         </button>
                         
                         <button id="ql-sync-all-members" class="button button-secondary">
-                            <?php _e('👥 Sincronizar Todos os Membros', 'quilombo-laboratorio'); ?>
+                            <?php _e('👥 Sincronizar Todos os Membros', 'quilombo-lab'); ?>
                         </button>
                         
                         <button id="ql-view-courses" class="button">
-                            <?php _e('👀 Ver Cursos Disponíveis', 'quilombo-laboratorio'); ?>
+                            <?php _e('👀 Ver Cursos Disponíveis', 'quilombo-lab'); ?>
                         </button>
                     </div>
                     
@@ -147,7 +147,7 @@ class QL_Moodle_Integration {
                 </div>
                 
                 <div class="ql-moodle-courses">
-                    <h2><?php _e('Cursos Mapeados', 'quilombo-laboratorio'); ?></h2>
+                    <h2><?php _e('Cursos Mapeados', 'quilombo-lab'); ?></h2>
                     <?php $this->display_mapped_courses(); ?>
                 </div>
             <?php endif; ?>
@@ -283,7 +283,7 @@ class QL_Moodle_Integration {
         );
         
         if (empty($mapped_courses)) {
-            echo '<p><em>' . __('Nenhum curso foi sincronizado ainda.', 'quilombo-laboratorio') . '</em></p>';
+            echo '<p><em>' . __('Nenhum curso foi sincronizado ainda.', 'quilombo-lab') . '</em></p>';
             return;
         }
         
@@ -291,12 +291,12 @@ class QL_Moodle_Integration {
         <table class="wp-list-table widefat fixed striped">
             <thead>
                 <tr>
-                    <th><?php _e('Curso Moodle', 'quilombo-laboratorio'); ?></th>
-                    <th><?php _e('Projeto Laboratório', 'quilombo-laboratorio'); ?></th>
-                    <th><?php _e('Tipo', 'quilombo-laboratorio'); ?></th>
-                    <th><?php _e('Status', 'quilombo-laboratorio'); ?></th>
-                    <th><?php _e('Última Sync', 'quilombo-laboratorio'); ?></th>
-                    <th><?php _e('Ações', 'quilombo-laboratorio'); ?></th>
+                    <th><?php _e('Curso Moodle', 'quilombo-lab'); ?></th>
+                    <th><?php _e('Projeto Laboratório', 'quilombo-lab'); ?></th>
+                    <th><?php _e('Tipo', 'quilombo-lab'); ?></th>
+                    <th><?php _e('Status', 'quilombo-lab'); ?></th>
+                    <th><?php _e('Última Sync', 'quilombo-lab'); ?></th>
+                    <th><?php _e('Ações', 'quilombo-lab'); ?></th>
                 </tr>
             </thead>
             <tbody>
@@ -318,11 +318,11 @@ class QL_Moodle_Integration {
                         </td>
                         <td>
                             <?php if ($course->project_name): ?>
-                                <a href="<?php echo admin_url('admin.php?page=quilombo-laboratorio-project-boards&project_id=' . $course->ql_project_id); ?>">
+                                <a href="<?php echo admin_url('admin.php?page=quilombo-lab-project-boards&project_id=' . $course->ql_project_id); ?>">
                                     <?php echo esc_html($course->project_name); ?>
                                 </a>
                             <?php else: ?>
-                                <em><?php _e('Projeto não encontrado', 'quilombo-laboratorio'); ?></em>
+                                <em><?php _e('Projeto não encontrado', 'quilombo-lab'); ?></em>
                             <?php endif; ?>
                         </td>
                         <td>

@@ -1,4 +1,4 @@
-# Quilombo Laboratório de Projetos
+# Quilombo Lab de Projetos
 
 Sistema completo de gestão de projetos integrado ao Plugin Gestão Coletiva. Gestão de projetos nativa do WordPress baseada em trilhas do Moodle.
 
@@ -6,7 +6,7 @@ Sistema completo de gestão de projetos integrado ao Plugin Gestão Coletiva. Ge
 
 ## Descrição
 
-O **Quilombo Laboratório de Projetos** é um plugin WordPress que implementa um sistema robusto de gestão de projetos com integração nativa ao Moodle através do Plugin Gestão Coletiva. Oferece interface Kanban, gestão de tarefas, sincronização de usuários e trilhas educacionais.
+O **Quilombo Lab de Projetos** é um plugin WordPress que implementa um sistema robusto de gestão de projetos com integração nativa ao Moodle através do Plugin Gestão Coletiva. Oferece interface Kanban, gestão de tarefas, sincronização de usuários e trilhas educacionais.
 
 ## Principais Funcionalidades
 
@@ -43,7 +43,7 @@ O **Quilombo Laboratório de Projetos** é um plugin WordPress que implementa um
 ## Instalação
 
 ### Instalação Padrão
-1. Faça upload do plugin para `/wp-content/plugins/quilombo-laboratorio/`
+1. Faça upload do plugin para `/wp-content/plugins/quilombo-lab/`
 2. Ative o plugin no painel administrativo
 3. Configure as permissões (feito automaticamente)
 4. Acesse o menu "Quilombo Lab" no admin
@@ -78,7 +78,7 @@ O plugin configura automaticamente as seguintes capabilities:
 
 ### Páginas Automáticas
 O plugin cria automaticamente:
-- Página `/laboratorio` com shortcode `[ql_dashboard]`
+- Página `/lab` com shortcode `[ql_dashboard]`
 
 ## Uso
 
@@ -207,8 +207,8 @@ Para questões técnicas:
 
 ### Estrutura de Arquivos
 ```
-quilombo-laboratorio/
-├── quilombo-laboratorio.php    # Arquivo principal
+quilombo-lab/
+├── quilombo-lab.php    # Arquivo principal
 ├── includes/                   # Classes principais
 │   ├── class-ql-admin.php     # Interface administrativa
 │   ├── class-ql-project.php   # Gestão de projetos

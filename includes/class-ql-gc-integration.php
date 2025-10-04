@@ -553,7 +553,7 @@ class QL_GC_Integration {
      * Registrar endpoints de integração
      */
     public function register_integration_endpoints() {
-        register_rest_route('quilombo-laboratorio/v1', '/gc-sync/project/(?P<id>\d+)', [
+        register_rest_route('quilombo-lab/v1', '/gc-sync/project/(?P<id>\d+)', [
             'methods' => 'POST',
             'callback' => [$this, 'sync_project_endpoint'],
             'permission_callback' => function() {
@@ -593,31 +593,31 @@ class QL_GC_Integration {
      */
     public function gc_not_active_notice() {
         echo '<div class="notice notice-error"><p>';
-        echo __('Quilombo Laboratório requer o Plugin Gestão Coletiva ativo para funcionar corretamente.', 'quilombo-laboratorio');
+        echo __('Quilombo Laboratório requer o Plugin Gestão Coletiva ativo para funcionar corretamente.', 'quilombo-lab');
         echo '</p></div>';
     }
     
     public function gc_version_notice() {
         echo '<div class="notice notice-info"><p>';
-        echo __('Para funcionalidades financeiras avançadas, instale o Plugin Gestão Coletiva versão 2.0.0 ou superior. O Quilombo Laboratório funciona independentemente.', 'quilombo-laboratorio');
+        echo __('Para funcionalidades financeiras avançadas, instale o Plugin Gestão Coletiva versão 2.0.0 ou superior. O Quilombo Laboratório funciona independentemente.', 'quilombo-lab');
         echo '</p></div>';
     }
     
     public function gc_tables_notice() {
         echo '<div class="notice notice-error"><p>';
-        echo __('Tabelas do Plugin Gestão Coletiva não encontradas. Verifique a instalação.', 'quilombo-laboratorio');
+        echo __('Tabelas do Plugin Gestão Coletiva não encontradas. Verifique a instalação.', 'quilombo-lab');
         echo '</p></div>';
     }
     
     public function gc_tables_optional_notice() {
         echo '<div class="notice notice-info"><p>';
-        echo __('Plugin Gestão Coletiva detectado mas algumas tabelas não foram encontradas. Funcionalidades de integração podem estar limitadas.', 'quilombo-laboratorio');
+        echo __('Plugin Gestão Coletiva detectado mas algumas tabelas não foram encontradas. Funcionalidades de integração podem estar limitadas.', 'quilombo-lab');
         echo '</p></div>';
     }
     
     public function gc_optional_notice() {
         echo '<div class="notice notice-info"><p>';
-        echo __('Quilombo Laboratório funcionando de forma independente. Para funcionalidades avançadas de gestão financeira, ative o Plugin Gestão Coletiva.', 'quilombo-laboratorio');
+        echo __('Quilombo Laboratório funcionando de forma independente. Para funcionalidades avançadas de gestão financeira, ative o Plugin Gestão Coletiva.', 'quilombo-lab');
         echo '</p></div>';
     }
     
