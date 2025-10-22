@@ -333,7 +333,7 @@ class QL_Moodle_Integration {
                         <td>
                             <?php if ($course->project_status): ?>
                                 <span class="ql-status-badge ql-status-<?php echo esc_attr($course->project_status); ?>">
-                                    <?php echo esc_html(ucfirst($course->project_status)); ?>
+                                    <?php echo esc_html(ql_translate_project_status($course->project_status)); ?>
                                 </span>
                             <?php else: ?>
                                 <span class="ql-status-badge ql-status-error">Erro</span>
@@ -575,14 +575,14 @@ class QL_Moodle_Integration {
      */
     public function get_cursos_moodle() {
         try {
-            $response = $this->call_moodle_api('core_course_get_courses');
+            $courses = $this->call_moodle_api('core_course_get_courses');
             
-            if (!$response || !is_array($response)) {
+            if (!$courses || !is_array($courses)) {
                 return [];
             }
             
             // Incluir todos os cursos (incluindo o curso do site ID 1)
-            return $response;
+            return $courses;
             
         } catch (Exception $e) {
             error_log('Quilombo Laboratório: Erro ao buscar cursos do Moodle: ' . $e->getMessage());
@@ -594,9 +594,9 @@ class QL_Moodle_Integration {
      * Obter cursos do Moodle (método interno)
      */
     private function get_moodle_courses() {
-        $response = $this->call_moodle_api('core_course_get_courses');
+        $courses = $this->call_moodle_api('core_course_get_courses');
         
-        if (!$response || !is_array($response)) {
+        if (!$courses || !is_array($courses)) {
             throw new Exception('Erro ao buscar cursos do Moodle');
         }
         
@@ -605,7 +605,7 @@ class QL_Moodle_Integration {
         
         if (!$site_course_accessible) {
             // Se não consegue acessar o curso principal, filtrar apenas os acessíveis
-            $courses = array_filter($response, function($course) {
+            $courses = array_filter($courses, function($course) {
                 return $course['id'] != 1;
             });
             
@@ -619,7 +619,7 @@ class QL_Moodle_Integration {
         }
         
         // Se tem acesso ao curso principal, retornar todos os cursos
-        return $response;
+        return $courses;
     }
     
     /**
@@ -627,6 +627,11 @@ class QL_Moodle_Integration {
      */
     private function process_moodle_course($course) {
         error_log("QL Moodle: Processando curso ID {$course['id']}: {$course['fullname']}");
+        
+        // Log para verificar se summary está sendo recebido
+        $summary = $course['summary'] ?? '';
+        $summary_preview = strlen($summary) > 100 ? substr($summary, 0, 100) . '...' : $summary;
+        error_log("QL Moodle: Descrição do curso (summary): " . ($summary ? "'{$summary_preview}'" : 'VAZIA'));
         
         // Determinar tipo de trilha baseado no nome/categoria
         $trilha_type = $this->detect_trilha_type($course);
@@ -758,19 +763,564 @@ class QL_Moodle_Integration {
      * Detectar tipo de trilha baseado no curso
      */
     private function detect_trilha_type($course) {
+        error_log("QL Moodle Debug: Detectando tipo para curso {$course['id']}: {$course['fullname']} (categoria: {$course['categoryid']})");
+        
+        // Verificar se é a trilha do site principal (sempre tipo Criação)
+        $trilha_coletivo_id = get_option('quilombo_laboratorio_trilha_coletivo', 1);
+        if ($course['id'] == 1 || $course['id'] == $trilha_coletivo_id) {
+            error_log("QL Moodle Debug: Trilha do site identificada - tipo: criacao");
+            return 'criacao';
+        }
+        
+        // Primeiro verificar se existe informação de categoria
+        $category_type = $this->detect_type_by_category($course);
+        error_log("QL Moodle Debug: Tipo por categoria: {$category_type}");
+        
+        if ($category_type !== 'aprendizagem') {
+            return $category_type;
+        }
+        
+        // Buscar por palavras-chave no nome
         $name = strtolower($course['fullname'] . ' ' . $course['shortname']);
         
-        // Buscar por palavras-chave
         if (preg_match('/pesquisa|research|investigação/', $name)) {
+            error_log("QL Moodle Debug: Tipo detectado por nome: pesquisa");
             return 'pesquisa';
         }
         
         if (preg_match('/criação|creation|design|arte|música/', $name)) {
+            error_log("QL Moodle Debug: Tipo detectado por nome: criacao");
             return 'criacao';
         }
         
         // Padrão é aprendizagem
         return 'aprendizagem';
+    }
+    
+    /**
+     * Detectar tipo da trilha baseado na categoria do curso Moodle
+     */
+    private function detect_type_by_category($course) {
+        error_log("QL Moodle Debug: --- INICIANDO DETECÇÃO POR CATEGORIA ---");
+        
+        // Usar apenas categoryid da API (campo sempre presente)
+        $category_id = $course['categoryid'] ?? null;
+        error_log("QL Moodle Debug: Campo categoryid: " . ($course['categoryid'] ?? 'NULL'));
+        error_log("QL Moodle Debug: ID da categoria final: " . ($category_id ?? 'NULL'));
+        
+        // Se não tem category ID, usar detecção por nome
+        if (!$category_id || $category_id <= 1) {
+            error_log("QL Moodle Debug: Categoria não disponível ou é categoria raiz - retornando 'aprendizagem'");
+            return 'aprendizagem';
+        }
+        
+        
+        try {
+            error_log("QL Moodle Debug: Buscando informações da categoria {$category_id}...");
+            
+            // Buscar informações da categoria
+            $category_info = $this->get_course_category($category_id);
+            error_log("QL Moodle Debug: Informações da categoria retornadas: " . ($category_info ? json_encode($category_info, JSON_UNESCAPED_UNICODE) : 'NULL'));
+            
+            if (!$category_info) {
+                error_log("QL Moodle Debug: Nenhuma informação da categoria encontrada - retornando 'aprendizagem'");
+                return 'aprendizagem';
+            }
+            
+            // Obter o caminho completo da categoria (incluindo pais)
+            error_log("QL Moodle Debug: Obtendo caminho completo da categoria...");
+            $category_path = $this->get_category_path($category_info);
+            error_log("QL Moodle Debug: Caminho da categoria: " . json_encode($category_path, JSON_UNESCAPED_UNICODE));
+            
+            // Primeiro, verificar se alguma categoria no caminho indica o tipo específico
+            error_log("QL Moodle Debug: Analisando caminho para tipo específico...");
+            $detected_type = $this->analyze_category_path_for_type($category_path);
+            error_log("QL Moodle Debug: Tipo detectado na análise do caminho: " . ($detected_type ?? 'NULL'));
+            
+            if ($detected_type !== null) {
+                error_log("QL Moodle Debug: Tipo específico encontrado no caminho: {$detected_type}");
+                return $detected_type;
+            }
+            
+            // Verificar se há "Quilombo" na hierarquia
+            error_log("QL Moodle Debug: Verificando se há 'Quilombo' na hierarquia...");
+            $has_quilombo_parent = false;
+            foreach ($category_path as $cat) {
+                if (stripos($cat['name'], 'quilombo') !== false) {
+                    $has_quilombo_parent = true;
+                    error_log("QL Moodle Debug: Encontrado 'Quilombo' na categoria: {$cat['name']}");
+                    break;
+                }
+            }
+            error_log("QL Moodle Debug: Tem Quilombo na hierarquia: " . ($has_quilombo_parent ? 'SIM' : 'NÃO'));
+            
+            // Se tem Quilombo na hierarquia, aplicar regras específicas
+            if ($has_quilombo_parent) {
+                error_log("QL Moodle Debug: Aplicando detecção para subcategorias do Quilombo...");
+                $quilombo_type = $this->detect_quilombo_subcategory_type($category_path);
+                error_log("QL Moodle Debug: Tipo detectado nas subcategorias do Quilombo: {$quilombo_type}");
+                return $quilombo_type;
+            }
+            
+            // Se não tem Quilombo na hierarquia, ainda verificar padrões de nomes
+            // para casos onde as subcategorias foram criadas diretamente
+            error_log("QL Moodle Debug: Aplicando detecção por nomes das categorias...");
+            $name_type = $this->detect_type_by_category_names($category_path);
+            error_log("QL Moodle Debug: Tipo detectado por nomes: {$name_type}");
+            return $name_type;
+            
+        } catch (Exception $e) {
+            error_log("QL Moodle Debug: ERRO na detecção por categoria: " . $e->getMessage());
+            error_log("QL Moodle Debug: Stack trace: " . $e->getTraceAsString());
+            return 'aprendizagem';
+        }
+    }
+    
+    /**
+     * Analisar caminho da categoria para identificar tipo específico
+     */
+    private function analyze_category_path_for_type($category_path) {
+        foreach ($category_path as $cat) {
+            // Verificar se há tipo inferido (do fallback)
+            if (isset($cat['inferred_type'])) {
+                error_log("QL Moodle Debug: Usando tipo inferido: {$cat['inferred_type']}");
+                return $cat['inferred_type'];
+            }
+            
+            $cat_name = strtolower($cat['name']);
+            error_log("QL Moodle Debug: Analisando nome da categoria: {$cat_name}");
+            
+            // Verificar padrões mais específicos primeiro
+            if (preg_match('/trilhas?\s+de\s+pesquisa|pesquisa\s+e\s+desenvolvimento|research\s+track/i', $cat_name)) {
+                error_log("QL Moodle Debug: Padrão específico detectado: pesquisa");
+                return 'pesquisa';
+            }
+            
+            if (preg_match('/trilhas?\s+de\s+criação|criação\s+e\s+arte|creation\s+track|design\s+thinking/i', $cat_name)) {
+                error_log("QL Moodle Debug: Padrão específico detectado: criacao");
+                return 'criacao';
+            }
+            
+            if (preg_match('/trilhas?\s+de\s+aprendizagem|aprendizagem\s+online|learning\s+track/i', $cat_name)) {
+                error_log("QL Moodle Debug: Padrão específico detectado: aprendizagem");
+                return 'aprendizagem';
+            }
+            
+            // Padrões mais gerais
+            if (strpos($cat_name, 'pesquisa') !== false || strpos($cat_name, 'research') !== false) {
+                error_log("QL Moodle Debug: Padrão geral detectado: pesquisa");
+                return 'pesquisa';
+            }
+            
+            if (strpos($cat_name, 'criação') !== false || strpos($cat_name, 'criacao') !== false || 
+                strpos($cat_name, 'creation') !== false || strpos($cat_name, 'arte') !== false ||
+                strpos($cat_name, 'design') !== false) {
+                error_log("QL Moodle Debug: Padrão geral detectado: criacao");
+                return 'criacao';
+            }
+            
+            if (strpos($cat_name, 'aprendizagem') !== false || strpos($cat_name, 'learning') !== false) {
+                error_log("QL Moodle Debug: Padrão geral detectado: aprendizagem");
+                return 'aprendizagem';
+            }
+        }
+        
+        error_log("QL Moodle Debug: Nenhum tipo específico detectado no caminho");
+        return null; // Nenhum tipo específico detectado
+    }
+    
+    /**
+     * Detectar tipo dentro da hierarquia Quilombo
+     */
+    private function detect_quilombo_subcategory_type($category_path) {
+        // Verificar subcategorias específicas dentro de Quilombo
+        foreach ($category_path as $cat) {
+            $cat_name = strtolower($cat['name']);
+            
+            // Trilhas de Pesquisa
+            if (strpos($cat_name, 'pesquisa') !== false || 
+                strpos($cat_name, 'research') !== false) {
+                return 'pesquisa';
+            }
+            
+            // Trilhas de Criação
+            if (strpos($cat_name, 'criação') !== false || 
+                strpos($cat_name, 'criacao') !== false ||
+                strpos($cat_name, 'creation') !== false) {
+                return 'criacao';
+            }
+            
+            // Trilhas de Aprendizagem (explícitas)
+            if (strpos($cat_name, 'aprendizagem') !== false || 
+                strpos($cat_name, 'learning') !== false) {
+                return 'aprendizagem';
+            }
+        }
+        
+        // Se está em Quilombo mas não tem subcategoria específica, é aprendizagem
+        return 'aprendizagem';
+    }
+    
+    /**
+     * Detectar tipo baseado apenas nos nomes das categorias
+     */
+    private function detect_type_by_category_names($category_path) {
+        foreach ($category_path as $cat) {
+            $cat_name = strtolower($cat['name']);
+            
+            // Palavras-chave para pesquisa
+            $research_keywords = ['pesquisa', 'research', 'investigação', 'ciência', 'científico', 'estudo', 'análise'];
+            foreach ($research_keywords as $keyword) {
+                if (strpos($cat_name, $keyword) !== false) {
+                    return 'pesquisa';
+                }
+            }
+            
+            // Palavras-chave para criação
+            $creation_keywords = ['criação', 'criacao', 'creation', 'arte', 'design', 'criativo', 'inovação', 'prototipagem'];
+            foreach ($creation_keywords as $keyword) {
+                if (strpos($cat_name, $keyword) !== false) {
+                    return 'criacao';
+                }
+            }
+            
+            // Palavras-chave para aprendizagem
+            $learning_keywords = ['aprendizagem', 'learning', 'ensino', 'educação', 'formação', 'curso', 'aula'];
+            foreach ($learning_keywords as $keyword) {
+                if (strpos($cat_name, $keyword) !== false) {
+                    return 'aprendizagem';
+                }
+            }
+        }
+        
+        // Padrão continua sendo aprendizagem
+        return 'aprendizagem';
+    }
+    
+    /**
+     * Buscar informações de uma categoria específica
+     */
+    private function get_course_category($category_id) {
+        try {
+            // Tentar primeiro via API Moodle
+            $response = $this->call_moodle_api('core_course_get_categories', [
+                'criteria' => [
+                    [
+                        'key' => 'id',
+                        'value' => $category_id
+                    ]
+                ]
+            ]);
+            
+            if (!empty($response)) {
+                error_log("QL Moodle Debug: Categoria obtida via API: " . json_encode($response[0], JSON_UNESCAPED_UNICODE));
+                return $response[0];
+            }
+            
+        } catch (Exception $e) {
+            error_log("QL Moodle Debug: Erro ao buscar categoria via API {$category_id}: " . $e->getMessage());
+        }
+        
+        // Fallback 1: buscar diretamente no banco do Moodle
+        error_log("QL Moodle Debug: Tentando fallback para banco de dados...");
+        $db_result = $this->get_course_category_from_db($category_id);
+        if ($db_result) {
+            return $db_result;
+        }
+        
+        // Fallback 2: usar método de detecção simplificado baseado em IDs conhecidos
+        error_log("QL Moodle Debug: Tentando fallback de detecção por IDs conhecidos...");
+        return $this->get_category_by_known_patterns($category_id);
+    }
+    
+    /**
+     * Buscar categoria diretamente do banco do Moodle como fallback
+     */
+    private function get_course_category_from_db($category_id) {
+        try {
+            // Tentar obter configurações do Moodle das configurações do plugin
+            $moodle_settings = QL_Config::get_moodle_settings();
+            
+            // Se não temos configurações de banco, tentar extrair do URL da API
+            $db_config = $this->extract_moodle_db_config($moodle_settings);
+            
+            if (!$db_config) {
+                error_log("QL Moodle: Não foi possível obter configurações do banco Moodle");
+                return null;
+            }
+            
+            $mysqli = new mysqli(
+                $db_config['host'], 
+                $db_config['user'], 
+                $db_config['pass'], 
+                $db_config['name'], 
+                $db_config['port']
+            );
+            
+            if ($mysqli->connect_error) {
+                error_log("QL Moodle: Erro ao conectar ao banco Moodle: " . $mysqli->connect_error);
+                return null;
+            }
+            
+            $mysqli->set_charset('utf8mb4');
+            
+            // Buscar categoria usando o prefixo correto
+            $query = "SELECT id, name, parent, description FROM {$db_config['prefix']}course_categories WHERE id = ?";
+            $stmt = $mysqli->prepare($query);
+            
+            if (!$stmt) {
+                error_log("QL Moodle: Erro ao preparar query: " . $mysqli->error);
+                $mysqli->close();
+                return null;
+            }
+            
+            $stmt->bind_param('i', $category_id);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            if ($row = $result->fetch_assoc()) {
+                $category = [
+                    'id' => (int)$row['id'],
+                    'name' => $row['name'],
+                    'parent' => (int)$row['parent'],
+                    'description' => $row['description'] ?? ''
+                ];
+                
+                $stmt->close();
+                $mysqli->close();
+                return $category;
+            }
+            
+            $stmt->close();
+            $mysqli->close();
+            error_log("QL Moodle: Categoria {$category_id} não encontrada no banco");
+            return null;
+            
+        } catch (Exception $e) {
+            error_log("QL Moodle: Erro ao buscar categoria no banco: " . $e->getMessage());
+            return null;
+        }
+    }
+    
+    /**
+     * Extrair configurações do banco Moodle a partir das configurações da API
+     */
+    private function extract_moodle_db_config($moodle_settings) {
+        // Primeiro verificar se há configurações manuais do banco nas configurações do plugin
+        if (!empty($moodle_settings['db_host']) && !empty($moodle_settings['db_name'])) {
+            error_log("QL Moodle Debug: Usando configurações manuais do banco");
+            return [
+                'host' => $moodle_settings['db_host'],
+                'user' => $moodle_settings['db_user'] ?? 'root',
+                'pass' => $moodle_settings['db_pass'] ?? '',
+                'name' => $moodle_settings['db_name'],
+                'port' => $moodle_settings['db_port'] ?? 3306,
+                'prefix' => $moodle_settings['db_prefix'] ?? 'mdl_'
+            ];
+        }
+        
+        // Tentar obter do arquivo de configuração do Moodle
+        $config_paths = [
+            ABSPATH . '../escola/config.php',  // Desenvolvimento local
+            ABSPATH . '../moodle/config.php',  // Possível produção
+            '/var/www/moodle/config.php',      // Padrão produção
+            '/opt/moodle/config.php',          // Alternativa produção
+        ];
+        
+        error_log("QL Moodle Debug: Tentando localizar config do Moodle. ABSPATH: " . ABSPATH);
+        
+        foreach ($config_paths as $config_path) {
+            error_log("QL Moodle Debug: Verificando caminho: " . $config_path . " - Existe: " . (file_exists($config_path) ? 'SIM' : 'NÃO'));
+            if (file_exists($config_path)) {
+                $config = $this->load_moodle_config($config_path);
+                if ($config) {
+                    error_log("QL Moodle Debug: Config carregado com sucesso de: " . $config_path);
+                    return $config;
+                }
+            }
+        }
+        
+        // Fallback: tentar derivar configurações do URL da API
+        if (!empty($moodle_settings['url'])) {
+            $parsed_url = parse_url($moodle_settings['url']);
+            $host = $parsed_url['host'] ?? 'localhost';
+            
+            error_log("QL Moodle Debug: Usando fallback para host: " . $host);
+            error_log("QL Moodle Debug: URL completa do Moodle: " . $moodle_settings['url']);
+            
+            // Configurações padrão baseadas no host
+            $default_configs = [
+                'localhost' => [
+                    'host' => 'localhost',
+                    'user' => 'quilombo',
+                    'pass' => '#Palmares@2025',
+                    'name' => 'moodle_escola',
+                    'port' => 3306,
+                    'prefix' => 'mdl_'
+                ],
+                'quilombociencia.org' => [
+                    'host' => 'localhost',
+                    'user' => 'quilombo_moodle',
+                    'pass' => $this->get_production_db_password(),
+                    'name' => 'quilombo_moodle',
+                    'port' => 3306,
+                    'prefix' => 'mdl_'
+                ]
+            ];
+            
+            if (isset($default_configs[$host])) {
+                error_log("QL Moodle Debug: Usando config padrão para host: " . $host);
+                return $default_configs[$host];
+            } else {
+                error_log("QL Moodle Debug: Host '{$host}' não encontrado nos configs padrão");
+            }
+        } else {
+            error_log("QL Moodle Debug: URL do Moodle não configurada");
+        }
+        
+        error_log("QL Moodle: Não foi possível determinar configurações do banco Moodle");
+        return null;
+    }
+    
+    /**
+     * Carregar configurações do arquivo config.php do Moodle
+     */
+    private function load_moodle_config($config_path) {
+        try {
+            // Capturar configurações em escopo isolado
+            $get_config = function() use ($config_path) {
+                $CFG = new stdClass();
+                include $config_path;
+                return $CFG;
+            };
+            
+            $CFG = $get_config();
+            
+            if ($CFG && isset($CFG->dbname, $CFG->dbuser, $CFG->dbpass)) {
+                return [
+                    'host' => $CFG->dbhost ?? 'localhost',
+                    'user' => $CFG->dbuser,
+                    'pass' => $CFG->dbpass,
+                    'name' => $CFG->dbname,
+                    'port' => $CFG->dboptions['dbport'] ?? 3306,
+                    'prefix' => $CFG->prefix ?? 'mdl_'
+                ];
+            }
+            
+            return null;
+            
+        } catch (Exception $e) {
+            error_log("QL Moodle: Erro ao carregar config do Moodle: " . $e->getMessage());
+            return null;
+        }
+    }
+    
+    /**
+     * Obter senha do banco de produção (implementar conforme necessário)
+     */
+    private function get_production_db_password() {
+        // Em produção, isso deveria vir de variáveis de ambiente ou arquivo seguro
+        // Por ora, retornar null para forçar o carregamento do arquivo de config
+        return null;
+    }
+    
+    /**
+     * Fallback para detecção por padrões conhecidos de IDs
+     */
+    private function get_category_by_known_patterns($category_id) {
+        error_log("QL Moodle Debug: Verificando padrões conhecidos para categoria ID: {$category_id}");
+        
+        // Mapear IDs conhecidos baseados no diagnóstico e estrutura esperada
+        // Estes IDs podem ser configurados ou aprendidos dinamicamente
+        $known_categories = $this->get_known_category_mappings();
+        
+        if (isset($known_categories[$category_id])) {
+            $category_info = $known_categories[$category_id];
+            error_log("QL Moodle Debug: Categoria encontrada em padrões conhecidos: " . json_encode($category_info, JSON_UNESCAPED_UNICODE));
+            return $category_info;
+        }
+        
+        // Tentar inferir baseado em padrões comuns de ID
+        $inferred = $this->infer_category_by_id_pattern($category_id);
+        if ($inferred) {
+            error_log("QL Moodle Debug: Categoria inferida por padrão: " . json_encode($inferred, JSON_UNESCAPED_UNICODE));
+            return $inferred;
+        }
+        
+        error_log("QL Moodle Debug: Nenhum padrão conhecido encontrado para categoria {$category_id}");
+        return null;
+    }
+    
+    /**
+     * Obter mapeamentos conhecidos de categorias
+     */
+    private function get_known_category_mappings() {
+        // Primeiro tentar obter de configurações salvas
+        $saved_mappings = get_option('ql_moodle_category_mappings', []);
+        
+        // Mesclar com padrões baseados na estrutura observada do site
+        $default_mappings = [
+            // Baseado no diagnóstico: curso ID 2 tem categoryid 15, curso ID 3 tem categoryid 13
+            // Assumir que estas podem ser subcategorias de tipos específicos
+            15 => ['id' => 15, 'name' => 'Trilhas de Pesquisa', 'parent' => 0],
+            13 => ['id' => 13, 'name' => 'Trilhas de Criação', 'parent' => 0],
+        ];
+        
+        return array_merge($default_mappings, $saved_mappings);
+    }
+    
+    /**
+     * Inferir informações da categoria baseado em padrões de ID
+     */
+    private function infer_category_by_id_pattern($category_id) {
+        // Criar uma categoria genérica para análise posterior
+        // O importante é ter algo para análise de nome
+        
+        // Baseado nos IDs observados no diagnóstico, fazer inferências educadas
+        $patterns = [
+            // IDs 10-19: possivelmente relacionados a pesquisa
+            range(10, 19) => ['type' => 'pesquisa', 'name' => 'Trilhas de Pesquisa'],
+            // IDs 20-29: possivelmente relacionados a criação  
+            range(20, 29) => ['type' => 'criacao', 'name' => 'Trilhas de Criação'],
+            // IDs específicos observados
+            [13] => ['type' => 'criacao', 'name' => 'Trilhas de Criação'],
+            [15] => ['type' => 'pesquisa', 'name' => 'Trilhas de Pesquisa'],
+        ];
+        
+        foreach ($patterns as $ids => $info) {
+            if (in_array($category_id, $ids)) {
+                return [
+                    'id' => $category_id,
+                    'name' => $info['name'],
+                    'parent' => 0,
+                    'inferred_type' => $info['type']
+                ];
+            }
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Obter caminho completo da categoria (incluindo pais)
+     */
+    private function get_category_path($category) {
+        $path = [$category];
+        
+        // Se tem parent, buscar recursivamente
+        if (isset($category['parent']) && $category['parent'] > 0) {
+            try {
+                $parent = $this->get_course_category($category['parent']);
+                if ($parent) {
+                    $parent_path = $this->get_category_path($parent);
+                    $path = array_merge($parent_path, $path);
+                }
+            } catch (Exception $e) {
+                error_log("QL Moodle: Erro ao buscar categoria pai: " . $e->getMessage());
+            }
+        }
+        
+        return $path;
     }
     
     /**
@@ -812,7 +1362,7 @@ class QL_Moodle_Integration {
                 'limited_access' => $is_virtual
             ]),
             'created_at' => current_time('mysql'),
-            'updated_at' => current_time('mysql')
+            'created_at' => current_time('mysql')
         ];
         
         $result = $wpdb->insert($wpdb->prefix . 'ql_projects', $project_data);
@@ -844,24 +1394,51 @@ class QL_Moodle_Integration {
     private function update_project_from_course($course, $trilha_type, $project_id) {
         global $wpdb;
         
+        // Verificar se o tipo de trilha mudou
+        $current_project = $wpdb->get_row($wpdb->prepare(
+            "SELECT settings FROM {$wpdb->prefix}ql_projects WHERE id = %d",
+            $project_id
+        ));
+        
+        $current_settings = $current_project && $current_project->settings ? 
+            json_decode($current_project->settings, true) : [];
+        $current_trilha_type = $current_settings['trilha_type'] ?? 'aprendizagem';
+        
         $update_data = [
             'name' => $course['fullname'],
             'description' => $course['summary'] ?? '',
             'start_date' => !empty($course['startdate']) ? date('Y-m-d', $course['startdate']) : null,
             'end_date' => !empty($course['enddate']) ? date('Y-m-d', $course['enddate']) : null,
-            'updated_at' => current_time('mysql')
+            'color' => $this->get_trilha_color($trilha_type),
+            'settings' => json_encode(array_merge($current_settings, [
+                'trilha_type' => $trilha_type,
+                'moodle_course_id' => $course['id'],
+                'auto_sync' => true
+            ])),
+            'created_at' => current_time('mysql')
         ];
         
         $result = $wpdb->update(
             $wpdb->prefix . 'ql_projects',
             $update_data,
             ['id' => $project_id],
-            ['%s', '%s', '%s', '%s', '%s'],
+            ['%s', '%s', '%s', '%s', '%s', '%s', '%s'],
             ['%d']
         );
         
         if ($result === false) {
             throw new Exception('Erro ao atualizar projeto: ' . $wpdb->last_error);
+        }
+        
+        // Se o tipo de trilha mudou, atualizar os quadros
+        if ($current_trilha_type !== $trilha_type) {
+            error_log("QL Moodle: Tipo de trilha mudou de '{$current_trilha_type}' para '{$trilha_type}' no projeto {$project_id}");
+            $this->update_boards_for_trilha_type_change($project_id, $trilha_type, $current_trilha_type);
+        }
+        
+        // Verificação especial para quadros de criação com template antigo
+        if ($trilha_type === 'criacao') {
+            $this->check_and_update_creation_boards_with_old_template($project_id);
         }
         
         return $project_id;
@@ -896,13 +1473,14 @@ class QL_Moodle_Integration {
                 ]
             ],
             'criacao' => [
-                'name' => 'Processo Criativo',
+                'name' => 'Desenvolvimento de Projeto',
                 'columns' => [
+                    ['name' => 'Problema', 'color' => '#e74c3c'],
                     ['name' => 'Ideação', 'color' => '#f1c40f'],
-                    ['name' => 'Prototipagem', 'color' => '#e67e22'],
+                    ['name' => 'Planejamento', 'color' => '#e67e22'],
                     ['name' => 'Desenvolvimento', 'color' => '#3498db'],
-                    ['name' => 'Teste', 'color' => '#9b59b6'],
-                    ['name' => 'Finalização', 'color' => '#27ae60']
+                    ['name' => 'Avaliação', 'color' => '#9b59b6'],
+                    ['name' => 'Concluída', 'color' => '#27ae60']
                 ]
             ]
         ];
@@ -937,6 +1515,196 @@ class QL_Moodle_Integration {
         }
         
         return $board_id;
+    }
+    
+    /**
+     * Atualizar quadros quando o tipo de trilha muda
+     */
+    private function update_boards_for_trilha_type_change($project_id, $new_trilha_type, $old_trilha_type) {
+        global $wpdb;
+        
+        error_log("QL Moodle: Atualizando quadros do projeto {$project_id} para novo tipo de trilha: {$new_trilha_type}");
+        
+        // Buscar quadros auto-criados do projeto
+        $auto_boards = $wpdb->get_results($wpdb->prepare(
+            "SELECT id, settings FROM {$wpdb->prefix}ql_boards 
+             WHERE project_id = %d AND settings LIKE %s",
+            $project_id,
+            '%auto_created%'
+        ));
+        
+        foreach ($auto_boards as $board) {
+            $settings = json_decode($board->settings, true) ?? [];
+            
+            // Só atualizar quadros que foram criados automaticamente
+            if (isset($settings['auto_created']) && $settings['auto_created']) {
+                $this->update_board_for_new_trilha_type($board->id, $new_trilha_type);
+            }
+        }
+        
+        // Se não há quadros auto-criados, criar um novo baseado no novo tipo
+        if (empty($auto_boards)) {
+            error_log("QL Moodle: Nenhum quadro auto-criado encontrado, criando novo quadro para tipo {$new_trilha_type}");
+            $this->create_default_board_for_trilha($project_id, $new_trilha_type);
+        }
+    }
+    
+    /**
+     * Atualizar um quadro específico para o novo tipo de trilha
+     */
+    private function update_board_for_new_trilha_type($board_id, $trilha_type) {
+        global $wpdb;
+        
+        error_log("QL Moodle: Atualizando quadro {$board_id} para tipo de trilha: {$trilha_type}");
+        
+        // Templates de quadros por tipo de trilha (mesmo da função create_default_board_for_trilha)
+        $templates = [
+            'aprendizagem' => [
+                'name' => 'Trilha de Aprendizagem',
+                'columns' => [
+                    ['name' => 'Planejamento', 'color' => '#e74c3c'],
+                    ['name' => 'Estudando', 'color' => '#f39c12'],
+                    ['name' => 'Praticando', 'color' => '#3498db'],
+                    ['name' => 'Revisão', 'color' => '#9b59b6'],
+                    ['name' => 'Concluído', 'color' => '#27ae60']
+                ]
+            ],
+            'pesquisa' => [
+                'name' => 'Metodologia de Pesquisa',
+                'columns' => [
+                    ['name' => 'Questão de Pesquisa', 'color' => '#9b59b6'],
+                    ['name' => 'Coleta de Dados', 'color' => '#e67e22'],
+                    ['name' => 'Análise', 'color' => '#2980b9'],
+                    ['name' => 'Validação', 'color' => '#16a085'],
+                    ['name' => 'Publicação', 'color' => '#27ae60']
+                ]
+            ],
+            'criacao' => [
+                'name' => 'Desenvolvimento de Projeto',
+                'columns' => [
+                    ['name' => 'Problema', 'color' => '#e74c3c'],
+                    ['name' => 'Ideação', 'color' => '#f1c40f'],
+                    ['name' => 'Planejamento', 'color' => '#e67e22'],
+                    ['name' => 'Desenvolvimento', 'color' => '#3498db'],
+                    ['name' => 'Avaliação', 'color' => '#9b59b6'],
+                    ['name' => 'Concluída', 'color' => '#27ae60']
+                ]
+            ]
+        ];
+        
+        $template = $templates[$trilha_type] ?? $templates['aprendizagem'];
+        
+        // Atualizar nome do quadro
+        $wpdb->update(
+            $wpdb->prefix . 'ql_boards',
+            [
+                'name' => $template['name'],
+                'settings' => json_encode(['auto_created' => true, 'trilha_type' => $trilha_type]),
+                'created_at' => current_time('mysql')
+            ],
+            ['id' => $board_id],
+            ['%s', '%s', '%s'],
+            ['%d']
+        );
+        
+        // Buscar colunas existentes
+        $existing_columns = $wpdb->get_results($wpdb->prepare(
+            "SELECT id, name FROM {$wpdb->prefix}ql_columns WHERE board_id = %d ORDER BY position",
+            $board_id
+        ));
+        
+        // Verificar se há tarefas nas colunas
+        $has_tasks = false;
+        foreach ($existing_columns as $col) {
+            $task_count = $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(*) FROM {$wpdb->prefix}ql_tasks WHERE column_id = %d",
+                $col->id
+            ));
+            if ($task_count > 0) {
+                $has_tasks = true;
+                break;
+            }
+        }
+        
+        if (!$has_tasks) {
+            // Se não há tarefas, recriar colunas do zero
+            error_log("QL Moodle: Quadro {$board_id} sem tarefas, recriando colunas");
+            
+            // Deletar colunas existentes
+            $wpdb->delete($wpdb->prefix . 'ql_columns', ['board_id' => $board_id]);
+            
+            // Criar novas colunas
+            foreach ($template['columns'] as $index => $column) {
+                $column_data = [
+                    'board_id' => $board_id,
+                    'name' => $column['name'],
+                    'position' => $index,
+                    'color' => $column['color'],
+                    'created_at' => current_time('mysql')
+                ];
+                
+                $wpdb->insert($wpdb->prefix . 'ql_columns', $column_data);
+            }
+        } else {
+            // Se há tarefas, apenas renomear colunas que fazem sentido
+            error_log("QL Moodle: Quadro {$board_id} com tarefas existentes, preservando estrutura");
+            
+            // Mapear colunas similares entre tipos
+            $this->map_existing_columns_to_new_type($board_id, $existing_columns, $template['columns']);
+        }
+    }
+    
+    /**
+     * Mapear colunas existentes para o novo tipo sem perder tarefas
+     */
+    private function map_existing_columns_to_new_type($board_id, $existing_columns, $new_columns) {
+        global $wpdb;
+        
+        // Mapeamentos de colunas similares entre tipos
+        $column_mappings = [
+            'planejamento' => ['questão de pesquisa', 'ideação'],
+            'estudando' => ['coleta de dados', 'prototipagem'],
+            'praticando' => ['análise', 'desenvolvimento'],
+            'revisão' => ['validação', 'teste'],
+            'concluído' => ['publicação', 'finalização']
+        ];
+        
+        foreach ($existing_columns as $index => $existing_col) {
+            if (isset($new_columns[$index])) {
+                $new_col = $new_columns[$index];
+                
+                // Atualizar nome e cor da coluna
+                $wpdb->update(
+                    $wpdb->prefix . 'ql_columns',
+                    [
+                        'name' => $new_col['name'],
+                        'color' => $new_col['color']
+                    ],
+                    ['id' => $existing_col->id],
+                    ['%s', '%s'],
+                    ['%d']
+                );
+                
+                error_log("QL Moodle: Coluna '{$existing_col->name}' renomeada para '{$new_col['name']}'");
+            }
+        }
+        
+        // Se há mais colunas no novo template, criar as faltantes
+        if (count($new_columns) > count($existing_columns)) {
+            for ($i = count($existing_columns); $i < count($new_columns); $i++) {
+                $column = $new_columns[$i];
+                $column_data = [
+                    'board_id' => $board_id,
+                    'name' => $column['name'],
+                    'position' => $i,
+                    'color' => $column['color'],
+                    'created_at' => current_time('mysql')
+                ];
+                
+                $wpdb->insert($wpdb->prefix . 'ql_columns', $column_data);
+                error_log("QL Moodle: Nova coluna '{$column['name']}' adicionada");
+            }
+        }
     }
     
     /**
@@ -1553,12 +2321,150 @@ class QL_Moodle_Integration {
         // Log final
         error_log("QL Moodle: Sincronização completa - {$stats['projects_processed']} projetos, {$stats['total_members_synced']} membros totais, " . count($stats['errors']) . " erros");
         
+        // Após a sincronização, atualizar quadros de criação existentes
+        $this->update_existing_creation_boards();
+        
         return [
             'success' => true,
             'projects_processed' => $stats['projects_processed'],
             'total_members_synced' => $stats['total_members_synced'],
             'errors' => $stats['errors']
         ];
+    }
+    
+    /**
+     * Atualizar quadros de projetos de criação existentes para usar as novas etapas
+     */
+    private function update_existing_creation_boards() {
+        global $wpdb;
+        
+        error_log("QL Moodle: [FORCE UPDATE] Iniciando verificação de quadros de criação");
+        
+        // Buscar quadros que precisam ser atualizados - busca mais ampla
+        $creation_boards = $wpdb->get_results("
+            SELECT DISTINCT b.id as board_id, b.name as board_name, p.name as project_name, b.settings
+            FROM {$wpdb->prefix}ql_boards b
+            JOIN {$wpdb->prefix}ql_projects p ON b.project_id = p.id
+            WHERE (b.settings LIKE '%trilha_criacao%' OR 
+                   b.name LIKE '%Processo Criativo%' OR
+                   b.name LIKE '%criação%' OR 
+                   b.name LIKE '%criativo%' OR
+                   b.name LIKE '%creation%')
+        ");
+        
+        error_log("QL Moodle: [FORCE UPDATE] Query executada, encontrados " . count($creation_boards) . " quadros");
+        
+        if (empty($creation_boards)) {
+            error_log("QL Moodle: [FORCE UPDATE] Nenhum quadro de criação encontrado");
+            
+            // Debug: mostrar todos os quadros para investigação
+            $all_boards = $wpdb->get_results("SELECT id, name, settings FROM {$wpdb->prefix}ql_boards LIMIT 10");
+            foreach ($all_boards as $board) {
+                error_log("QL Moodle: [DEBUG] Quadro encontrado: {$board->name} (settings: {$board->settings})");
+            }
+            return;
+        }
+        
+        $updated_count = 0;
+        $skipped_count = 0;
+        
+        foreach ($creation_boards as $board) {
+            error_log("QL Moodle: [FORCE UPDATE] Verificando quadro: {$board->board_name} (ID: {$board->board_id})");
+            
+            // Verificar colunas atuais com mais detalhes
+            $current_columns = $wpdb->get_results($wpdb->prepare(
+                "SELECT name, position FROM {$wpdb->prefix}ql_columns WHERE board_id = %d ORDER BY position",
+                $board->board_id
+            ));
+            
+            $column_names = array_map(function($col) { return $col->name; }, $current_columns);
+            error_log("QL Moodle: [FORCE UPDATE] Colunas atuais: " . implode(', ', $column_names));
+            
+            $first_three_columns = array_slice($column_names, 0, 3);
+            
+            // Verificar se já está correto
+            if (count($first_three_columns) >= 3 && 
+                $first_three_columns[0] === 'Problema' && 
+                $first_three_columns[1] === 'Ideação' && 
+                $first_three_columns[2] === 'Planejamento') {
+                error_log("QL Moodle: [FORCE UPDATE] Quadro {$board->board_name} já está correto, pulando");
+                $skipped_count++;
+                continue;
+            }
+            
+            error_log("QL Moodle: [FORCE UPDATE] Quadro {$board->board_name} precisa ser atualizado");
+            error_log("QL Moodle: [FORCE UPDATE] Colunas atuais: " . implode(' > ', $first_three_columns));
+            error_log("QL Moodle: [FORCE UPDATE] Esperadas: Problema > Ideação > Planejamento");
+            
+            try {
+                // Forçar atualização para tipo de trilha de criação
+                error_log("QL Moodle: [FORCE UPDATE] Chamando update_board_for_new_trilha_type para board {$board->board_id}");
+                $this->update_board_for_new_trilha_type($board->board_id, 'criacao');
+                
+                // Atualizar settings do quadro
+                $settings_result = $wpdb->update(
+                    $wpdb->prefix . 'ql_boards',
+                    ['settings' => json_encode(['auto_created' => true, 'trilha_type' => 'criacao'])],
+                    ['id' => $board->board_id]
+                );
+                
+                error_log("QL Moodle: [FORCE UPDATE] Settings atualizados (linhas afetadas: $settings_result)");
+                
+                // Verificar se funcionou
+                $new_columns = $wpdb->get_results($wpdb->prepare(
+                    "SELECT name FROM {$wpdb->prefix}ql_columns WHERE board_id = %d ORDER BY position LIMIT 3",
+                    $board->board_id
+                ));
+                
+                $new_column_names = array_map(function($col) { return $col->name; }, $new_columns);
+                error_log("QL Moodle: [FORCE UPDATE] Colunas após atualização: " . implode(', ', $new_column_names));
+                
+                $updated_count++;
+                error_log("QL Moodle: [FORCE UPDATE] Quadro {$board->board_name} atualizado com sucesso");
+                
+            } catch (Exception $e) {
+                error_log("QL Moodle: [FORCE UPDATE] Erro ao atualizar quadro {$board->board_name}: " . $e->getMessage());
+            }
+        }
+        
+        error_log("QL Moodle: [FORCE UPDATE] Atualização concluída - $updated_count atualizados, $skipped_count pulados");
+    }
+    
+    /**
+     * Verificar e atualizar quadros de criação que ainda usam template antigo
+     */
+    private function check_and_update_creation_boards_with_old_template($project_id) {
+        global $wpdb;
+        
+        error_log("QL Moodle: Verificando quadros de criação no projeto $project_id para template antigo");
+        
+        // Buscar quadros de criação neste projeto
+        $boards = $wpdb->get_results($wpdb->prepare(
+            "SELECT id, name FROM {$wpdb->prefix}ql_boards WHERE project_id = %d",
+            $project_id
+        ));
+        
+        foreach ($boards as $board) {
+            // Verificar se o quadro tem as primeiras colunas do template antigo
+            $columns = $wpdb->get_results($wpdb->prepare(
+                "SELECT name FROM {$wpdb->prefix}ql_columns WHERE board_id = %d ORDER BY position LIMIT 3",
+                $board->id
+            ));
+            
+            if (count($columns) >= 2) {
+                $first_two = array_map(function($col) { return $col->name; }, array_slice($columns, 0, 2));
+                
+                // Se tem "Ideação" e "Prototipagem" nas primeiras posições, é template antigo
+                if (in_array('Ideação', $first_two) && in_array('Prototipagem', $first_two)) {
+                    error_log("QL Moodle: Quadro {$board->name} (ID: {$board->id}) tem template antigo, atualizando");
+                    
+                    // Forçar atualização para o novo template
+                    $this->update_board_for_new_trilha_type($board->id, 'criacao');
+                    
+                    error_log("QL Moodle: Quadro {$board->name} atualizado para novo template de criação");
+                }
+            }
+        }
     }
     
     /**
@@ -1994,7 +2900,7 @@ class QL_Moodle_Integration {
                     'manual_creation' => true
                 ]),
                 'created_at' => current_time('mysql'),
-                'updated_at' => current_time('mysql')
+                'created_at' => current_time('mysql')
             ];
             
             // Criar projeto diretamente no QL

@@ -359,19 +359,20 @@ class QL_Database {
                 'template_type' => 'trilha_criacao',
                 'template_data' => json_encode([
                     'boards' => [
-                        ['name' => 'Processo Criativo', 'type' => 'kanban', 'is_default' => true]
+                        ['name' => 'Desenvolvimento de Projeto', 'type' => 'kanban', 'is_default' => true]
                     ],
                     'columns' => [
-                        ['name' => 'Ideação', 'position' => 1, 'color' => '#f1c40f'],
-                        ['name' => 'Prototipagem', 'position' => 2, 'color' => '#e67e22'],
-                        ['name' => 'Desenvolvimento', 'position' => 3, 'color' => '#3498db'],
-                        ['name' => 'Teste e Validação', 'position' => 4, 'color' => '#9b59b6'],
-                        ['name' => 'Finalização', 'position' => 5, 'color' => '#27ae60']
+                        ['name' => 'Problema', 'position' => 1, 'color' => '#e74c3c'],
+                        ['name' => 'Ideação', 'position' => 2, 'color' => '#f1c40f'],
+                        ['name' => 'Planejamento', 'position' => 3, 'color' => '#e67e22'],
+                        ['name' => 'Desenvolvimento', 'position' => 4, 'color' => '#3498db'],
+                        ['name' => 'Avaliação', 'position' => 5, 'color' => '#9b59b6'],
+                        ['name' => 'Concluída', 'position' => 6, 'color' => '#27ae60']
                     ],
                     'default_tasks' => [
-                        ['title' => 'Brainstorming de ideias', 'column' => 1],
-                        ['title' => 'Pesquisa de referências', 'column' => 1],
-                        ['title' => 'Definir escopo do projeto', 'column' => 1]
+                        ['title' => 'Identificar o problema central', 'column' => 1],
+                        ['title' => 'Definir o contexto e stakeholders', 'column' => 1],
+                        ['title' => 'Documentar requisitos iniciais', 'column' => 1]
                     ]
                 ]),
                 'created_by' => QL_Config::get_default_admin_id()

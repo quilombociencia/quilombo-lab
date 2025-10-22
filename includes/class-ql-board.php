@@ -47,8 +47,7 @@ class QL_Board {
             'project_id' => intval($data['project_id']),
             'user_id' => get_current_user_id(),
             'status' => !empty($data['status']) ? sanitize_text_field($data['status']) : 'active',
-            'created_at' => current_time('mysql'),
-            'updated_at' => current_time('mysql')
+            'created_at' => current_time('mysql')
         ];
         
         $result = $wpdb->insert($this->table_name, $board_data);
@@ -229,8 +228,6 @@ class QL_Board {
             $update_data['status'] = sanitize_text_field($data['status']);
         }
         
-        $update_data['updated_at'] = current_time('mysql');
-        
         $result = $wpdb->update(
             $this->table_name,
             $update_data,
@@ -308,7 +305,7 @@ class QL_Board {
              FROM {$this->table_name} b
              LEFT JOIN {$project_table} p ON b.project_id = p.id
              WHERE b.user_id = %d OR p.user_id = %d
-             ORDER BY b.updated_at DESC",
+             ORDER BY b.created_at DESC",
             $user_id, $user_id
         ), ARRAY_A);
         
@@ -407,7 +404,7 @@ class QL_Board {
                 FROM {$this->table_name} b
                 LEFT JOIN {$wpdb->prefix}ql_projects p ON b.project_id = p.id
                 {$where_clause}
-                ORDER BY b.updated_at DESC";
+                ORDER BY b.created_at DESC";
         
         $boards = $wpdb->get_results($wpdb->prepare($sql, $params), ARRAY_A);
         
