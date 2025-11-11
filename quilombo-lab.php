@@ -161,7 +161,9 @@ class QuilomboLaboratorio {
             'class-ql-ajax.php',
             'class-ql-public.php',
             'class-ql-shortcodes.php',
-            'class-ql-trilha-sync.php'
+            'class-ql-trilha-sync.php',
+            'class-ql-organizational-roles.php', // Novo sistema de papéis organizativos
+            'class-ql-instances.php'             // Novo sistema de instâncias organizacionais
         ];
         
         foreach ($optional_files as $file) {
@@ -269,6 +271,16 @@ class QuilomboLaboratorio {
         // Calendar - apenas se existir
         if (class_exists('QL_Calendar')) {
             QL_Calendar::get_instance();
+        }
+        
+        // Sistema de papéis organizativos - sempre importante
+        if (class_exists('QL_Organizational_Roles')) {
+            QL_Organizational_Roles::get_instance();
+        }
+        
+        // Sistema de instâncias organizacionais - sempre importante  
+        if (class_exists('QL_Instances')) {
+            QL_Instances::get_instance();
         }
     }
     
