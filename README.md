@@ -2,20 +2,22 @@
 
 Plugin WordPress para gestão de projetos colaborativos com integração Moodle e sistema de trilhas de aprendizagem.
 
-## Versão Atual: 2.1.0
+## Versão Atual: 1.1.1-production
 
 ## Descrição
 
-O Quilombo Laboratório oferece um sistema completo de gestão de projetos baseado em metodologias ágeis, com foco em trilhas de aprendizagem, pesquisa e criação. Integra-se nativamente com Moodle e oferece quadros Kanban personalizáveis por tipo de projeto.
+O Quilombo Laboratório oferece um sistema completo de gestão de projetos baseado em metodologias ágeis, com foco em trilhas de aprendizagem, pesquisa e criação. Integra-se nativamente com Moodle e oferece quadros Kanban personalizáveis por tipo de projeto com sistema de modais robusto para criação e edição de tarefas.
 
 ## Principais Funcionalidades
 
-- **Gestão de Projetos**: Sistema Kanban com quadros personalizáveis
+- **Gestão de Projetos**: Sistema Kanban com quadros personalizáveis por trilha
+- **Sistema de Modais Robusto**: Interface fluida para criação/edição de tarefas com event delegation
 - **Trilhas de Aprendizagem**: Templates especializados para diferentes tipos de projetos
 - **Integração Moodle**: Sincronização automática de cursos e usuários
 - **Sistema de Tarefas**: Gestão completa com prioridades, prazos e anexos
 - **Colaboração**: Gerenciamento de membros e permissões por projeto
 - **Relatórios**: Dashboard com métricas e acompanhamento de progresso
+- **Interface Aprimorada**: Botões circulares minimalistas e design responsivo
 
 ## Tipos de Trilhas
 
@@ -27,6 +29,29 @@ O Quilombo Laboratório oferece um sistema completo de gestão de projetos basea
 
 ### Trilhas de Criação
 - Problema → Ideação → Planejamento → Desenvolvimento → Avaliação → Concluída
+
+## 🎉 Últimas Implementações (v1.1.0-beta-stable)
+
+### ✨ Sistema de Modais Revolucionário
+- **Event Delegation Robusto**: Sistema final com captura automática de eventos
+- **Auto-recuperação**: Monitora e religa eventos automaticamente se necessário
+- **Performance Otimizada**: Um único listener global no body resolve todos os conflitos
+
+### 🎨 Interface Completamente Renovada
+- **Botão Circular Minimalista**: Design elegante com símbolo "+" centralizado
+- **Estados Interativos**: Hover, focus e active com animações suaves
+- **Responsivo**: Ajustes automáticos para mobile (40px → 36px)
+- **Acessibilidade**: Navegação por teclado com outline adequado
+
+### 🔧 Correções Críticas
+- **Modal Reabertura**: Resolvido problema onde modais só abriam uma vez
+- **DOM Dinâmico**: Sistema resistente a recriação de elementos
+- **Event Conflicts**: Eliminados conflitos entre scripts de modal
+
+### 🧹 Limpeza de Código
+- **Scripts Legacy**: Movidos para `assets/js/deprecated/`
+- **Debug Reduzido**: Logs apenas quando necessário
+- **Performance**: Remoção de código desnecessário
 
 ## Requisitos
 
@@ -92,15 +117,30 @@ GPL v2 ou superior
 
 ## Changelog
 
-### 2.1.0
-- Correção: Eliminados quadros duplicados ao alterar tipo de trilha
-- Melhoria: Migração automática de tarefas entre templates
-- Melhoria: Sistema de limpeza inteligente de duplicatas
+### 1.1.0-beta-stable (Atual)
+- ✨ **Sistema de Modais Robusto**: Event delegation final com auto-recuperação
+- 🎨 **Botão Circular Minimalista**: Design "+' centralizado e responsivo
+- 🔧 **Correção Modal Reabertura**: Resolvido problema crítico de modais
+- 🧹 **Limpeza Legacy**: Scripts antigos movidos para deprecated/
+- ✅ **100% Funcional**: Criação/edição de tarefas working perfeitamente
 
-### 2.0.0
-- Nova: Integração completa com Moodle
-- Nova: Sistema de trilhas especializadas
-- Nova: Templates de quadros por tipo de projeto
+### 1.0.3-production
+- ✨ Sistema de auto-correção de problemas conhecidos
+- 🎨 Interface dos cards de projetos aprimorada (350px altura padrão)
+- 🔧 Corrigidos problemas de capability e cache
+- 📚 README completamente reescrito
+- 🧹 Removidos scripts de correção desnecessários
+
+### 1.0.2-production  
+- 🔧 Integração estabilizada com Plugin Gestão Coletiva
+- ⚡ Performance geral melhorada
+- 🔧 Correções de bugs menores na interface
+
+### 1.0.0-beta
+- ✨ Lançamento inicial do plugin
+- 📋 Funcionalidades básicas de gestão de projetos
+- 🔗 Integração com Plugin Gestão Coletiva
+- 📊 Sistema básico de quadros Kanban
 
 ---
 

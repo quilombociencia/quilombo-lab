@@ -3,7 +3,7 @@
  * Plugin Name: Quilombo Laboratório de Projetos
  * Plugin URI: https://quilombociencia.org
  * Description: Sistema completo de gestão de projetos integrado ao Plugin Gestão Coletiva. Gestão de projetos nativa do WordPress baseada em trilhas do Moodle.
- * Version: 1.1.0-beta-stable
+ * Version: 1.1.1-production
  * Author: Quilombo Ciência
  * Author URI: https://quilombociencia.org
  * License: GPL v3 or later
