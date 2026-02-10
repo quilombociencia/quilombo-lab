@@ -473,10 +473,56 @@ class QL_Moodle_Integration {
     }
     
     /**
+     * Verificar se o Moodle está configurado
+     */
+    public function is_moodle_configured() {
+        return !empty($this->moodle_url) && !empty($this->moodle_token);
+    }
+
+    /**
+     * Fazer requisição à API do Moodle (método auxiliar)
+     * Recebe parâmetros completos incluindo wsfunction e wstoken
+     */
+    private function make_request($params) {
+        if (empty($this->api_endpoint)) {
+            throw new Exception('Endpoint da API Moodle não configurado');
+        }
+
+        $response = wp_remote_post($this->api_endpoint, [
+            'body' => $params,
+            'timeout' => 30,
+            'headers' => [
+                'User-Agent' => 'Quilombo-Laboratorio-Plugin/1.0'
+            ]
+        ]);
+
+        if (is_wp_error($response)) {
+            throw new Exception('Erro na requisição: ' . $response->get_error_message());
+        }
+
+        $http_code = wp_remote_retrieve_response_code($response);
+        $body = wp_remote_retrieve_body($response);
+
+        if ($http_code !== 200) {
+            throw new Exception('HTTP Error ' . $http_code);
+        }
+
+        $data = json_decode($body, true);
+
+        // Verificar se houve erro da API Moodle
+        if (isset($data['exception']) || isset($data['errorcode'])) {
+            $error_msg = $data['message'] ?? $data['exception'] ?? 'Erro desconhecido da API Moodle';
+            throw new Exception('Erro da API Moodle: ' . $error_msg);
+        }
+
+        return $data;
+    }
+
+    /**
      * Testar conexão com Moodle
      */
     public function test_connection() {
-        if (empty($this->moodle_url) || empty($this->moodle_token)) {
+        if (!$this->is_moodle_configured()) {
             return [
                 'success' => false,
                 'message' => 'URL do Moodle ou token não configurados. Verifique as configurações do plugin.'
@@ -1201,57 +1247,83 @@ class QL_Moodle_Integration {
     }
     
     /**
-     * Buscar grupos do Moodle
+     * Buscar grupos do Moodle (de todos os cursos)
      */
     public function get_all_groups() {
         if (!$this->is_moodle_configured()) {
             throw new Exception('Moodle não configurado');
         }
-        
+
         try {
-            $params = [
-                'wsfunction' => 'core_group_get_groups',
-                'moodlewsrestformat' => 'json',
-                'wstoken' => $this->moodle_token
-            ];
-            
-            $response = $this->make_request($params);
-            
-            if (isset($response['groups'])) {
-                return $response['groups'];
+            // Primeiro, obter todos os cursos
+            $courses = $this->get_moodle_courses();
+            $all_groups = [];
+
+            foreach ($courses as $course) {
+                $course_id = is_array($course) ? ($course['id'] ?? null) : ($course->id ?? null);
+                if (!$course_id) continue;
+
+                try {
+                    $groups = $this->get_course_groups($course_id);
+                    if (!empty($groups) && is_array($groups)) {
+                        foreach ($groups as $group) {
+                            // Adicionar course_id ao grupo para referência
+                            if (is_array($group)) {
+                                $group['courseid'] = $course_id;
+                            }
+                            $all_groups[] = $group;
+                        }
+                    }
+                } catch (Exception $e) {
+                    // Log mas continua com outros cursos
+                    error_log('QL Moodle: Erro ao buscar grupos do curso ' . $course_id . ': ' . $e->getMessage());
+                }
             }
-            
-            return $response ?: [];
-            
+
+            return $all_groups;
+
         } catch (Exception $e) {
             error_log('QL Moodle: Erro ao buscar grupos: ' . $e->getMessage());
             throw $e;
         }
     }
-    
+
     /**
-     * Buscar agrupamentos do Moodle
+     * Buscar agrupamentos do Moodle (de todos os cursos)
      */
     public function get_all_groupings() {
         if (!$this->is_moodle_configured()) {
             throw new Exception('Moodle não configurado');
         }
-        
+
         try {
-            $params = [
-                'wsfunction' => 'core_group_get_groupings',
-                'moodlewsrestformat' => 'json',
-                'wstoken' => $this->moodle_token
-            ];
-            
-            $response = $this->make_request($params);
-            
-            if (isset($response['groupings'])) {
-                return $response['groupings'];
+            // Primeiro, obter todos os cursos
+            $courses = $this->get_moodle_courses();
+            $all_groupings = [];
+
+            foreach ($courses as $course) {
+                $course_id = is_array($course) ? ($course['id'] ?? null) : ($course->id ?? null);
+                if (!$course_id) continue;
+
+                try {
+                    $groupings = $this->get_course_groupings($course_id);
+                    if (!empty($groupings) && is_array($groupings)) {
+                        foreach ($groupings as $grouping) {
+                            // Adicionar course_id ao agrupamento para referência
+                            if (is_array($grouping)) {
+                                $grouping['courseid'] = $course_id;
+                            }
+                            $all_groupings[] = $grouping;
+                        }
+                    }
+                } catch (Exception $e) {
+                    // Log mas continua com outros cursos
+                    error_log('QL Moodle: Erro ao buscar agrupamentos do curso ' . $course_id . ': ' . $e->getMessage());
+                }
             }
-            
-            return $response ?: [];
-            
+
+            return $all_groupings;
+
         } catch (Exception $e) {
             error_log('QL Moodle: Erro ao buscar agrupamentos: ' . $e->getMessage());
             throw $e;
@@ -1309,7 +1381,73 @@ class QL_Moodle_Integration {
             throw $e;
         }
     }
-    
+
+    /**
+     * Buscar membros de um grupo específico
+     */
+    public function get_group_members($group_id) {
+        if (!$this->is_moodle_configured()) {
+            throw new Exception('Moodle não configurado');
+        }
+
+        try {
+            $params = [
+                'wsfunction' => 'core_group_get_group_members',
+                'groupids[0]' => $group_id,
+                'moodlewsrestformat' => 'json',
+                'wstoken' => $this->moodle_token
+            ];
+
+            $response = $this->make_request($params);
+
+            // A resposta é um array de grupos com seus membros
+            if (!empty($response) && is_array($response)) {
+                foreach ($response as $group_data) {
+                    if (isset($group_data['groupid']) && $group_data['groupid'] == $group_id) {
+                        return $group_data['userids'] ?? [];
+                    }
+                }
+            }
+
+            return [];
+
+        } catch (Exception $e) {
+            error_log('QL Moodle: Erro ao buscar membros do grupo ' . $group_id . ': ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Buscar detalhes de usuários do Moodle por IDs
+     */
+    public function get_users_by_ids($user_ids) {
+        if (!$this->is_moodle_configured() || empty($user_ids)) {
+            return [];
+        }
+
+        try {
+            $params = [
+                'wsfunction' => 'core_user_get_users_by_field',
+                'field' => 'id',
+                'moodlewsrestformat' => 'json',
+                'wstoken' => $this->moodle_token
+            ];
+
+            // Adicionar IDs de usuários
+            foreach ($user_ids as $index => $user_id) {
+                $params["values[$index]"] = $user_id;
+            }
+
+            $response = $this->make_request($params);
+
+            return is_array($response) ? $response : [];
+
+        } catch (Exception $e) {
+            error_log('QL Moodle: Erro ao buscar usuários: ' . $e->getMessage());
+            return [];
+        }
+    }
+
     /**
      * AJAX - Buscar todos os grupos
      */

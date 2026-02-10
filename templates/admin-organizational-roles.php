@@ -67,79 +67,99 @@ $all_users = get_users();
             </div>
         </div>
         
-        <!-- Atribuir Papéis -->
-        <div class="ql-assign-roles">
-            <h2>Atribuir Papel Organizativo</h2>
+        <!-- Informação sobre Atribuição de Papéis -->
+        <div class="ql-role-assignment-info">
+            <h2>Atribuição de Papéis Organizativos</h2>
             
-            <form method="post" action="">
-                <?php wp_nonce_field('ql_assign_role'); ?>
+            <div class="ql-moodle-integration-notice">
+                <div class="notice notice-info inline">
+                    <p>
+                        <strong>Conforme Modelo Organizativo:</strong> 
+                        Os papéis são atribuídos no <strong>Moodle</strong> e mapeados automaticamente para o sistema QL.
+                    </p>
+                    <p>
+                        Para atribuir papéis organizativos:
+                    </p>
+                    <ol>
+                        <li><strong>Acesse o curso/trilha no Moodle</strong></li>
+                        <li><strong>Atribua o papel desejado ao usuário</strong> (Ex: Guia, Orientação, etc.)</li>
+                        <li><strong>O sistema QL sincronizará automaticamente</strong> os papéis do Moodle</li>
+                    </ol>
+                </div>
                 
-                <table class="form-table">
-                    <tr>
-                        <th scope="row">
-                            <label for="user_id">Usuário</label>
-                        </th>
-                        <td>
-                            <select name="user_id" id="user_id" required class="regular-text">
-                                <option value="">Selecionar usuário...</option>
-                                <?php foreach ($all_users as $user): ?>
-                                    <option value="<?php echo $user->ID; ?>">
-                                        <?php echo $user->display_name; ?> (<?php echo $user->user_email; ?>)
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </td>
-                    </tr>
-                    
-                    <tr>
-                        <th scope="row">
-                            <label for="role_key">Papel</label>
-                        </th>
-                        <td>
-                            <select name="role_key" id="role_key" required class="regular-text">
-                                <option value="">Selecionar papel...</option>
-                                <?php foreach ($role_definitions as $key => $data): ?>
-                                    <option value="<?php echo $key; ?>">
-                                        <?php echo $data['label']; ?> - <?php echo $data['description']; ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </td>
-                    </tr>
-                    
-                    <tr>
-                        <th scope="row">
-                            <label for="context_type">Contexto</label>
-                        </th>
-                        <td>
-                            <select name="context_type" id="context_type" class="regular-text">
-                                <option value="global">Global (todo o sistema)</option>
-                                <option value="trilha">Trilha específica</option>
-                                <option value="projeto">Projeto específico</option>
-                                <option value="circulo">Círculo específico</option>
-                                <option value="coletivo">Coletivo</option>
-                            </select>
-                        </td>
-                    </tr>
-                    
-                    <tr>
-                        <th scope="row">
-                            <label for="context_id">ID do Contexto</label>
-                        </th>
-                        <td>
-                            <input type="number" name="context_id" id="context_id" class="regular-text" 
-                                   placeholder="Deixar vazio para contexto global">
-                            <p class="description">
-                                ID específico do projeto, trilha, círculo, etc. Deixar vazio para aplicar globalmente.
-                            </p>
-                        </td>
-                    </tr>
-                </table>
-                
-                <p class="submit">
-                    <input type="submit" name="assign_role" class="button-primary" value="Atribuir Papel">
-                </p>
-            </form>
+                <?php if (current_user_can('manage_options')): ?>
+                    <div class="ql-admin-only-assignment">
+                        <h3>Atribuição Manual (Apenas Administradores)</h3>
+                        <p>Como administrador, você pode atribuir papéis globais diretamente no sistema QL.</p>
+                        
+                        <button type="button" id="ql-show-manual-assignment" class="button button-secondary">
+                            Mostrar Formulário Manual
+                        </button>
+                        
+                        <div id="ql-manual-assignment-form" style="display: none; margin-top: 15px;">
+                            <form method="post" action="">
+                                <?php wp_nonce_field('ql_assign_role'); ?>
+                                
+                                <table class="form-table">
+                                    <tr>
+                                        <th scope="row">
+                                            <label for="user_id">Usuário</label>
+                                        </th>
+                                        <td>
+                                            <select name="user_id" id="user_id" required class="regular-text">
+                                                <option value="">Selecionar usuário...</option>
+                                                <?php foreach ($all_users as $user): ?>
+                                                    <option value="<?php echo $user->ID; ?>">
+                                                        <?php echo $user->display_name; ?> (<?php echo $user->user_email; ?>)
+                                                    </option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                        </td>
+                                    </tr>
+                                    
+                                    <tr>
+                                        <th scope="row">
+                                            <label for="role_key">Papel Global</label>
+                                        </th>
+                                        <td>
+                                            <select name="role_key" id="role_key" required class="regular-text">
+                                                <option value="">Selecionar papel...</option>
+                                                <?php foreach ($role_definitions as $key => $data): ?>
+                                                    <option value="<?php echo $key; ?>">
+                                                        <?php echo $data['label']; ?> - <?php echo $data['description']; ?>
+                                                    </option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                            <p class="description">
+                                                <strong>Atenção:</strong> Este formulário atribui apenas papéis <em>globais</em>. 
+                                                Para papéis específicos de projetos/trilhas, use o Moodle.
+                                            </p>
+                                        </td>
+                                    </tr>
+                                    
+                                    <input type="hidden" name="context_type" value="global">
+                                    <input type="hidden" name="context_id" value="">
+                                </table>
+                                
+                                <p class="submit">
+                                    <input type="submit" name="assign_role" class="button-primary" value="Atribuir Papel Global">
+                                    <button type="button" id="ql-hide-manual-assignment" class="button button-secondary">
+                                        Cancelar
+                                    </button>
+                                </p>
+                            </form>
+                        </div>
+                    </div>
+                <?php else: ?>
+                    <div class="notice notice-warning inline">
+                        <p>
+                            <strong>Permissões limitadas:</strong> 
+                            Apenas administradores podem atribuir papéis globais diretamente. 
+                            Use o Moodle para atribuir papéis em projetos específicos.
+                        </p>
+                    </div>
+                <?php endif; ?>
+            </div>
         </div>
         
         <!-- Lista de Usuários e seus Papéis -->
@@ -454,6 +474,25 @@ $all_users = get_users();
     overflow-y: auto;
 }
 
+.ql-moodle-integration-notice {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 20px;
+    margin: 20px 0;
+}
+
+.ql-admin-only-assignment {
+    border-top: 1px solid #ddd;
+    padding-top: 20px;
+    margin-top: 20px;
+}
+
+.ql-role-assignment-info h3 {
+    color: #333;
+    margin-bottom: 10px;
+}
+
 @media (max-width: 768px) {
     .ql-roles-grid {
         grid-template-columns: 1fr;
@@ -501,6 +540,17 @@ jQuery(document).ready(function($) {
         if (e.keyCode === 27) {
             $('.ql-modal').hide();
         }
+    });
+    
+    // Mostrar/ocultar formulário manual
+    $('#ql-show-manual-assignment').on('click', function() {
+        $('#ql-manual-assignment-form').show();
+        $(this).hide();
+    });
+    
+    $('#ql-hide-manual-assignment').on('click', function() {
+        $('#ql-manual-assignment-form').hide();
+        $('#ql-show-manual-assignment').show();
     });
 });
 </script>

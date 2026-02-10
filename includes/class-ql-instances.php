@@ -115,7 +115,8 @@ class QL_Instances {
      */
     private function __construct() {
         add_action('init', [$this, 'init']);
-        add_action('admin_menu', [$this, 'add_admin_menu']);
+        // Comentado: menu movido para QL_Admin sob menu Organização
+        // add_action('admin_menu', [$this, 'add_admin_menu']);
         
         // Hooks para gestão de instâncias
         add_action('ql_instance_created', [$this, 'on_instance_created'], 10, 3);
@@ -124,10 +125,16 @@ class QL_Instances {
         add_action('ql_instance_member_removed', [$this, 'on_member_removed'], 10, 4);
         
         // AJAX handlers
-        add_action('wp_ajax_ql_create_instance', [$this, 'ajax_create_instance']);
+        add_action('wp_ajax_ql_import_moodle_groups', [$this, 'ajax_import_moodle_groups']);
+        add_action('wp_ajax_ql_sync_instances_from_moodle', [$this, 'ajax_sync_instances']);
         add_action('wp_ajax_ql_add_member_to_instance', [$this, 'ajax_add_member']);
         add_action('wp_ajax_ql_remove_member_from_instance', [$this, 'ajax_remove_member']);
         add_action('wp_ajax_ql_get_instance_hierarchy', [$this, 'ajax_get_hierarchy']);
+        add_action('wp_ajax_ql_update_nucleus_address', [$this, 'ajax_update_nucleus_address']);
+        add_action('wp_ajax_ql_get_nucleus_address', [$this, 'ajax_get_nucleus_address']);
+        add_action('wp_ajax_ql_create_community', [$this, 'ajax_create_community']);
+        add_action('wp_ajax_ql_create_assembly', [$this, 'ajax_create_assembly']);
+        add_action('wp_ajax_ql_schedule_assembly', [$this, 'ajax_schedule_assembly']);
         
         // Shortcodes
         add_shortcode('ql_instance_display', [$this, 'shortcode_instance_display']);
@@ -235,9 +242,15 @@ class QL_Instances {
     
     /**
      * Registrar post types para páginas públicas das instâncias
+     * DESABILITADO: Conforme modelo organizativo, páginas são criadas apenas para projetos
      */
     private function register_instance_post_types() {
-        // Post type para núcleos (que precisam de páginas públicas)
+        // Post types REMOVIDOS para núcleos - não devem aparecer no menu WordPress
+        // Conforme especificação: núcleos são mapeados de agrupamentos do Moodle
+        // Páginas são criadas apenas para projetos quando publicados
+        return;
+        
+        /*
         register_post_type('ql_nucleo_page', [
             'labels' => [
                 'name' => 'Páginas de Núcleos',
@@ -256,12 +269,22 @@ class QL_Instances {
             'rewrite' => ['slug' => 'nucleo'],
             'show_in_rest' => true
         ]);
+        */
     }
     
     /**
-     * Criar nova instância
+     * Criar nova instância - DESABILITADO
+     * Círculos e Núcleos devem ser criados apenas através do Moodle (grupos/agrupamentos)
      */
     public function create_instance($type, $name, $creator_id, $options = []) {
+        // Círculos e núcleos não podem ser criados pelo plugin
+        if (in_array($type, ['circulo', 'nucleo'])) {
+            return new WP_Error(
+                'creation_disabled', 
+                'Círculos e núcleos devem ser criados no Moodle como grupos/agrupamentos'
+            );
+        }
+        
         global $wpdb;
         
         // Validar tipo
@@ -309,11 +332,6 @@ class QL_Instances {
         // Adicionar criador como primeiro membro
         $this->add_member_to_instance($instance_id, $creator_id, 'founder');
         
-        // Criar página pública se necessário
-        if ($type === 'nucleo') {
-            $this->create_nucleo_public_page($instance_id, $name, $options);
-        }
-        
         // Disparar hook
         do_action('ql_instance_created', $instance_id, $type, $instance_data);
         
@@ -326,7 +344,7 @@ class QL_Instances {
     public function add_member_to_instance($instance_id, $user_id, $role = 'member', $added_by = null) {
         global $wpdb;
         
-        $instance = $this->get_instance($instance_id);
+        $instance = $this->get_instance_by_id($instance_id);
         if (!$instance) {
             return new WP_Error('instance_not_found', 'Instância não encontrada');
         }
@@ -392,7 +410,7 @@ class QL_Instances {
     /**
      * Obter instância por ID
      */
-    public function get_instance($instance_id) {
+    public function get_instance_by_id($instance_id) {
         global $wpdb;
         
         $table_name = $wpdb->prefix . 'ql_instances';
@@ -439,7 +457,7 @@ class QL_Instances {
      * Atualizar status da instância baseado em regras
      */
     public function update_instance_status($instance_id) {
-        $instance = $this->get_instance($instance_id);
+        $instance = $this->get_instance_by_id($instance_id);
         if (!$instance) return;
         
         $type_config = self::INSTANCE_TYPES[$instance->type];
@@ -495,21 +513,70 @@ class QL_Instances {
      */
     private function count_child_instances($parent_id, $child_type) {
         global $wpdb;
-        
+
         $relationships_table = $wpdb->prefix . 'ql_instance_relationships';
         $instances_table = $wpdb->prefix . 'ql_instances';
-        
+
         return (int) $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) 
-             FROM $relationships_table r 
-             JOIN $instances_table i ON r.child_instance_id = i.id 
-             WHERE r.parent_instance_id = %d 
-             AND i.type = %s 
+            "SELECT COUNT(*)
+             FROM $relationships_table r
+             JOIN $instances_table i ON r.child_instance_id = i.id
+             WHERE r.parent_instance_id = %d
+             AND i.type = %s
              AND i.status IN ('active', 'complete')",
             $parent_id, $child_type
         ));
     }
-    
+
+    /**
+     * Obter instâncias filhas de uma instância pai
+     */
+    public function get_child_instances($parent_id, $child_type = null) {
+        global $wpdb;
+
+        $relationships_table = $wpdb->prefix . 'ql_instance_relationships';
+        $instances_table = $wpdb->prefix . 'ql_instances';
+
+        $sql = "SELECT i.*
+                FROM $instances_table i
+                LEFT JOIN $relationships_table r ON r.child_instance_id = i.id
+                WHERE (r.parent_instance_id = %d OR i.parent_instance_id = %d)";
+
+        $params = [$parent_id, $parent_id];
+
+        if ($child_type) {
+            $sql .= " AND i.type = %s";
+            $params[] = $child_type;
+        }
+
+        $sql .= " AND i.status != 'deleted' ORDER BY i.name ASC";
+
+        return $wpdb->get_results($wpdb->prepare($sql, $params));
+    }
+
+    /**
+     * Obter todas as instâncias de um tipo específico
+     */
+    public function get_instances_by_type($type, $status = null) {
+        global $wpdb;
+
+        $table_name = $wpdb->prefix . 'ql_instances';
+
+        $sql = "SELECT * FROM $table_name WHERE type = %s";
+        $params = [$type];
+
+        if ($status) {
+            $sql .= " AND status = %s";
+            $params[] = $status;
+        } else {
+            $sql .= " AND status != 'deleted'";
+        }
+
+        $sql .= " ORDER BY name ASC";
+
+        return $wpdb->get_results($wpdb->prepare($sql, $params));
+    }
+
     /**
      * Verificar se usuário pode criar instância
      */
@@ -557,8 +624,13 @@ class QL_Instances {
     
     /**
      * Criar página pública para núcleo
+     * DESABILITADO: Conforme modelo organizativo, páginas são criadas apenas para projetos
      */
     private function create_nucleo_public_page($instance_id, $name, $options) {
+        // Método desabilitado - não criar páginas para núcleos
+        return;
+        
+        /*
         $page_data = [
             'post_title' => $name . ' - Núcleo',
             'post_content' => '[ql_instance_display id="' . $instance_id . '"]',
@@ -585,6 +657,7 @@ class QL_Instances {
                 ['%d']
             );
         }
+        */
     }
     
     /**
@@ -636,33 +709,260 @@ class QL_Instances {
     }
     
     /**
-     * AJAX - Criar instância
+     * Importar grupos/agrupamentos do Moodle como círculos/núcleos
      */
-    public function ajax_create_instance() {
+    public function import_from_moodle_groups($course_id = null) {
+        if (!class_exists('QL_Moodle_Integration')) {
+            return new WP_Error('moodle_not_available', 'Integração Moodle não disponível');
+        }
+        
+        $moodle = QL_Moodle_Integration::get_instance();
+        
+        try {
+            // Obter grupos do curso ou todos os grupos
+            $groups = $course_id ? 
+                $moodle->get_course_groups($course_id) : 
+                $moodle->get_all_groups();
+                
+            // Obter agrupamentos
+            $groupings = $course_id ? 
+                $moodle->get_course_groupings($course_id) : 
+                $moodle->get_all_groupings();
+            
+            $imported = ['circles' => 0, 'nuclei' => 0, 'members' => 0, 'errors' => []];
+
+            // Importar grupos como círculos
+            foreach ($groups as $group) {
+                // Buscar membros do grupo
+                $group_id = is_array($group) ? ($group['id'] ?? null) : null;
+                if ($group_id) {
+                    try {
+                        $member_ids = $moodle->get_group_members($group_id);
+                        if (!empty($member_ids)) {
+                            $members_data = $moodle->get_users_by_ids($member_ids);
+                            $group['members'] = $members_data;
+                        }
+                    } catch (Exception $e) {
+                        error_log('QL Instances: Erro ao buscar membros do grupo ' . $group_id . ': ' . $e->getMessage());
+                    }
+                }
+
+                $result = $this->import_moodle_group_as_circle($group);
+                if (is_wp_error($result)) {
+                    $imported['errors'][] = "Grupo {$group['name']}: " . $result->get_error_message();
+                } else {
+                    $imported['circles']++;
+                    if (!empty($group['members'])) {
+                        $imported['members'] += count($group['members']);
+                    }
+                }
+            }
+
+            // Importar agrupamentos como núcleos
+            foreach ($groupings as $grouping) {
+                $result = $this->import_moodle_grouping_as_nucleus($grouping);
+                if (is_wp_error($result)) {
+                    $imported['errors'][] = "Agrupamento {$grouping['name']}: " . $result->get_error_message();
+                } else {
+                    $imported['nuclei']++;
+                }
+            }
+            
+            return $imported;
+            
+        } catch (Exception $e) {
+            return new WP_Error('import_failed', $e->getMessage());
+        }
+    }
+    
+    /**
+     * Importar grupo Moodle como círculo
+     */
+    private function import_moodle_group_as_circle($moodle_group) {
+        global $wpdb;
+        
+        // Verificar se já existe
+        $table_name = $wpdb->prefix . 'ql_instances';
+        $existing = $wpdb->get_row($wpdb->prepare(
+            "SELECT id FROM $table_name WHERE type = 'circulo' AND JSON_EXTRACT(metadata, '$.moodle_group_id') = %d",
+            $moodle_group['id']
+        ));
+        
+        if ($existing) {
+            return $existing->id; // Já existe
+        }
+        
+        // Criar círculo
+        $instance_data = [
+            'type' => 'circulo',
+            'name' => sanitize_text_field($moodle_group['name']),
+            'slug' => $this->generate_unique_slug($moodle_group['name'], 'circulo'),
+            'description' => sanitize_textarea_field($moodle_group['description'] ?? ''),
+            'status' => 'active',
+            'creator_id' => 1, // Sistema
+            'settings' => json_encode(['source' => 'moodle']),
+            'metadata' => json_encode([
+                'moodle_group_id' => $moodle_group['id'],
+                'moodle_course_id' => $moodle_group['courseid'],
+                'imported_at' => current_time('mysql')
+            ])
+        ];
+        
+        $result = $wpdb->insert($table_name, $instance_data);
+        
+        if ($result === false) {
+            return new WP_Error('db_error', 'Erro ao importar grupo');
+        }
+        
+        $instance_id = $wpdb->insert_id;
+        
+        // Importar membros do grupo
+        if (isset($moodle_group['members'])) {
+            $this->import_group_members($instance_id, $moodle_group['members']);
+        }
+        
+        return $instance_id;
+    }
+    
+    /**
+     * Importar agrupamento Moodle como núcleo
+     */
+    private function import_moodle_grouping_as_nucleus($moodle_grouping) {
+        global $wpdb;
+        
+        // Verificar se já existe
+        $table_name = $wpdb->prefix . 'ql_instances';
+        $existing = $wpdb->get_row($wpdb->prepare(
+            "SELECT id FROM $table_name WHERE type = 'nucleo' AND JSON_EXTRACT(metadata, '$.moodle_grouping_id') = %d",
+            $moodle_grouping['id']
+        ));
+        
+        if ($existing) {
+            return $existing->id; // Já existe
+        }
+        
+        // Criar núcleo
+        $instance_data = [
+            'type' => 'nucleo',
+            'name' => sanitize_text_field($moodle_grouping['name']),
+            'slug' => $this->generate_unique_slug($moodle_grouping['name'], 'nucleo'),
+            'description' => sanitize_textarea_field($moodle_grouping['description'] ?? ''),
+            'status' => 'active',
+            'creator_id' => 1, // Sistema
+            'settings' => json_encode(['source' => 'moodle']),
+            'metadata' => json_encode([
+                'moodle_grouping_id' => $moodle_grouping['id'],
+                'moodle_course_id' => $moodle_grouping['courseid'],
+                'imported_at' => current_time('mysql')
+            ])
+        ];
+        
+        $result = $wpdb->insert($table_name, $instance_data);
+        
+        if ($result === false) {
+            return new WP_Error('db_error', 'Erro ao importar agrupamento');
+        }
+        
+        $instance_id = $wpdb->insert_id;
+        
+        // Relacionar círculos do agrupamento
+        if (isset($moodle_grouping['groups'])) {
+            $this->link_grouping_circles($instance_id, $moodle_grouping['groups']);
+        }
+        
+        return $instance_id;
+    }
+    
+    /**
+     * Importar membros de grupo Moodle
+     */
+    private function import_group_members($circle_id, $moodle_members) {
+        foreach ($moodle_members as $member) {
+            $wp_user = get_user_by('email', $member['email']);
+            if ($wp_user) {
+                $this->add_member_to_instance($circle_id, $wp_user->ID, 'member');
+            }
+        }
+    }
+    
+    /**
+     * Relacionar círculos a núcleo baseado em agrupamento Moodle
+     */
+    private function link_grouping_circles($nucleus_id, $moodle_groups) {
+        global $wpdb;
+        
+        $instances_table = $wpdb->prefix . 'ql_instances';
+        $relationships_table = $wpdb->prefix . 'ql_instance_relationships';
+        
+        foreach ($moodle_groups as $group_id) {
+            // Encontrar círculo correspondente
+            $circle = $wpdb->get_row($wpdb->prepare(
+                "SELECT id FROM $instances_table WHERE type = 'circulo' AND JSON_EXTRACT(metadata, '$.moodle_group_id') = %d",
+                $group_id
+            ));
+            
+            if ($circle) {
+                // Criar relacionamento
+                $wpdb->replace($relationships_table, [
+                    'parent_instance_id' => $nucleus_id,
+                    'child_instance_id' => $circle->id,
+                    'relationship_type' => 'nucleus_circle'
+                ]);
+                
+                // Atualizar parent_instance_id do círculo
+                $wpdb->update(
+                    $instances_table,
+                    ['parent_instance_id' => $nucleus_id],
+                    ['id' => $circle->id],
+                    ['%d'],
+                    ['%d']
+                );
+            }
+        }
+    }
+    
+    /**
+     * AJAX - Importar grupos/agrupamentos do Moodle
+     */
+    public function ajax_import_moodle_groups() {
         if (!wp_verify_nonce($_POST['nonce'], 'ql_admin_nonce')) {
             wp_die('Nonce inválido');
         }
         
-        $type = sanitize_text_field($_POST['type']);
-        $name = sanitize_text_field($_POST['name']);
-        $creator_id = get_current_user_id();
+        $course_id = !empty($_POST['course_id']) ? intval($_POST['course_id']) : null;
         
-        $options = [
-            'description' => sanitize_textarea_field($_POST['description'] ?? ''),
-            'parent_id' => !empty($_POST['parent_id']) ? intval($_POST['parent_id']) : null,
-            'project_id' => !empty($_POST['project_id']) ? intval($_POST['project_id']) : null,
-            'physical_address' => sanitize_textarea_field($_POST['physical_address'] ?? ''),
-            'virtual_page_url' => esc_url($_POST['virtual_page_url'] ?? '')
-        ];
-        
-        $result = $this->create_instance($type, $name, $creator_id, $options);
+        $result = $this->import_from_moodle_groups($course_id);
         
         if (is_wp_error($result)) {
             wp_send_json_error(['message' => $result->get_error_message()]);
         } else {
             wp_send_json_success([
-                'message' => 'Instância criada com sucesso',
-                'instance_id' => $result
+                'message' => sprintf(
+                    'Importação concluída: %d círculos, %d núcleos',
+                    $result['circles'],
+                    $result['nuclei']
+                ),
+                'result' => $result
+            ]);
+        }
+    }
+    
+    /**
+     * AJAX - Sincronizar instâncias com Moodle
+     */
+    public function ajax_sync_instances() {
+        if (!wp_verify_nonce($_POST['nonce'], 'ql_admin_nonce')) {
+            wp_die('Nonce inválido');
+        }
+        
+        $result = $this->import_from_moodle_groups();
+        
+        if (is_wp_error($result)) {
+            wp_send_json_error(['message' => $result->get_error_message()]);
+        } else {
+            wp_send_json_success([
+                'message' => 'Sincronização concluída',
+                'result' => $result
             ]);
         }
     }
@@ -720,6 +1020,49 @@ class QL_Instances {
         $hierarchy = $this->get_instances_hierarchy($root_type ?: null);
         
         wp_send_json_success(['hierarchy' => $hierarchy]);
+    }
+    
+    /**
+     * AJAX - Atualizar endereço de núcleo
+     */
+    public function ajax_update_nucleus_address() {
+        if (!wp_verify_nonce($_POST['nonce'], 'ql_admin_nonce')) {
+            wp_die('Nonce inválido');
+        }
+        
+        $nucleus_id = intval($_POST['nucleus_id']);
+        $physical_address = sanitize_textarea_field($_POST['physical_address']);
+        $virtual_page_url = esc_url($_POST['virtual_page_url']);
+        
+        $result = $this->update_nucleus_address($nucleus_id, $physical_address, $virtual_page_url);
+        
+        if (is_wp_error($result)) {
+            wp_send_json_error(['message' => $result->get_error_message()]);
+        } else {
+            wp_send_json_success(['message' => 'Endereço atualizado com sucesso']);
+        }
+    }
+    
+    /**
+     * AJAX - Obter endereço de núcleo
+     */
+    public function ajax_get_nucleus_address() {
+        if (!wp_verify_nonce($_POST['nonce'], 'ql_admin_nonce')) {
+            wp_die('Nonce inválido');
+        }
+        
+        $nucleus_id = intval($_POST['nucleus_id']);
+        $nucleus = $this->get_instance_by_id($nucleus_id);
+        
+        if (!$nucleus || $nucleus->type !== 'nucleo') {
+            wp_send_json_error(['message' => 'Núcleo não encontrado']);
+            return;
+        }
+        
+        wp_send_json_success([
+            'physical_address' => $nucleus->physical_address,
+            'virtual_page_url' => $nucleus->virtual_page_url
+        ]);
     }
     
     /**
@@ -784,6 +1127,14 @@ class QL_Instances {
                 if ($data['project_id']) {
                     $this->maybe_activate_project($data['project_id'], $instance_id);
                 }
+                
+                // Hook para integração Moodle: criar grupo correspondente
+                do_action('ql_circle_created', $instance_id, $data);
+                break;
+                
+            case 'nucleo':
+                // Hook para integração Moodle: criar agrupamento correspondente
+                do_action('ql_nucleus_created', $instance_id, $data);
                 break;
                 
             case 'coletivo':
@@ -797,21 +1148,12 @@ class QL_Instances {
      * Configurar estrutura inicial de coletivo
      */
     private function setup_coletivo_initial_structure($coletivo_id) {
-        // Criar círculo inicial de gestão
-        $gestao_circle = $this->create_instance(
-            'circulo',
-            'Círculo de Gestão Inicial',
-            get_current_user_id(),
-            [
-                'parent_id' => $coletivo_id,
-                'description' => 'Círculo inicial responsável pela gestão do coletivo',
-                'metadata' => ['is_management_circle' => true]
-            ]
-        );
+        // NOTA: Círculos de gestão devem ser criados no Moodle como grupos
+        // Este método apenas registra que o coletivo foi criado
+        error_log("QL Instances: Coletivo {$coletivo_id} criado - círculos devem ser criados no Moodle");
         
-        if (!is_wp_error($gestao_circle)) {
-            error_log("QL Instances: Círculo de gestão criado para coletivo {$coletivo_id}");
-        }
+        // Notificar sobre necessidade de criar grupos no Moodle
+        do_action('ql_coletivo_created_needs_moodle_setup', $coletivo_id);
     }
     
     /**
@@ -838,9 +1180,446 @@ class QL_Instances {
      * Verificar se instância está completa/ativa conforme regras
      */
     public function is_instance_complete($instance_id) {
-        $instance = $this->get_instance($instance_id);
+        $instance = $this->get_instance_by_id($instance_id);
         if (!$instance) return false;
         
         return in_array($instance->status, ['active', 'complete']);
+    }
+    
+    /**
+     * Atualizar endereço de núcleo (físico e virtual)
+     * Conforme modelo organizativo: núcleos precisam de endereço físico e virtual
+     */
+    public function update_nucleus_address($nucleus_id, $physical_address, $virtual_page_url = '') {
+        global $wpdb;
+        
+        $nucleus = $this->get_instance_by_id($nucleus_id);
+        if (!$nucleus) {
+            return new WP_Error('nucleus_not_found', 'Núcleo não encontrado');
+        }
+        
+        if ($nucleus->type !== 'nucleo') {
+            return new WP_Error('not_nucleus', 'Esta instância não é um núcleo');
+        }
+        
+        // Validar endereço físico (obrigatório para núcleos)
+        if (empty(trim($physical_address))) {
+            return new WP_Error('address_required', 'Endereço físico é obrigatório para núcleos');
+        }
+        
+        // Atualizar no banco
+        $table_name = $wpdb->prefix . 'ql_instances';
+        $result = $wpdb->update(
+            $table_name,
+            [
+                'physical_address' => sanitize_textarea_field($physical_address),
+                'virtual_page_url' => esc_url($virtual_page_url)
+            ],
+            ['id' => $nucleus_id],
+            ['%s', '%s'],
+            ['%d']
+        );
+        
+        if ($result === false) {
+            return new WP_Error('db_error', 'Erro ao atualizar endereço');
+        }
+        
+        // Disparar hook
+        do_action('ql_nucleus_address_updated', $nucleus_id, $physical_address, $virtual_page_url);
+        
+        return true;
+    }
+    
+    /**
+     * Criar comunidade - HABILITADO conforme modelo organizativo
+     */
+    public function create_community($name, $territory_scope, $creator_id, $options = []) {
+        // Validar escopo territorial
+        if (empty(trim($territory_scope))) {
+            return new WP_Error('territory_required', 'Escopo territorial é obrigatório para comunidades');
+        }
+        
+        // Verificar se já existe comunidade para este território
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'ql_instances';
+        $existing = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM $table_name 
+             WHERE type = 'comunidade' 
+             AND JSON_EXTRACT(metadata, '$.territory_scope') = %s
+             AND status = 'active'",
+            $territory_scope
+        ));
+        
+        if ($existing > 0) {
+            return new WP_Error('territory_taken', 'Já existe uma comunidade para este território');
+        }
+        
+        // Preparar dados da comunidade
+        $community_data = [
+            'type' => 'comunidade',
+            'name' => sanitize_text_field($name),
+            'slug' => $this->generate_unique_slug($name, 'comunidade'),
+            'description' => sanitize_textarea_field($options['description'] ?? "Comunidade do território: {$territory_scope}"),
+            'status' => 'active',
+            'creator_id' => $creator_id,
+            'territory_id' => $options['territory_id'] ?? null,
+            'settings' => json_encode([
+                'territory_scope' => $territory_scope,
+                'membership_criteria' => $options['membership_criteria'] ?? 'territorial_belonging'
+            ]),
+            'metadata' => json_encode([
+                'territory_scope' => $territory_scope,
+                'created_at' => current_time('mysql'),
+                'belongs_to_territory' => true,
+                'auto_membership' => $options['auto_membership'] ?? true
+            ])
+        ];
+        
+        $result = $wpdb->insert($table_name, $community_data);
+        
+        if ($result === false) {
+            return new WP_Error('db_error', 'Erro ao criar comunidade');
+        }
+        
+        $community_id = $wpdb->insert_id;
+        
+        // Adicionar criador como primeiro membro
+        $this->add_member_to_instance($community_id, $creator_id, 'founder');
+        
+        // Auto-adicionar usuários que pertencem ao território (se habilitado)
+        if ($options['auto_membership'] ?? true) {
+            $this->add_territorial_members($community_id, $territory_scope);
+        }
+        
+        // Disparar hook
+        do_action('ql_community_created', $community_id, $territory_scope);
+        
+        return $community_id;
+    }
+    
+    /**
+     * Criar assembleia - HABILITADO conforme modelo organizativo
+     */
+    public function create_assembly($name, $coletivo_id, $creator_id, $options = []) {
+        global $wpdb;
+
+        // Verificar se coletivo existe
+        $coletivo = $this->get_instance_by_id($coletivo_id);
+        if (!$coletivo || $coletivo->type !== 'coletivo') {
+            return new WP_Error('invalid_coletivo', 'Coletivo não encontrado ou inválido');
+        }
+
+        $table_name = $wpdb->prefix . 'ql_instances';
+
+        // Preparar dados da assembleia
+        $assembly_data = [
+            'type' => 'assembleia',
+            'name' => sanitize_text_field($name),
+            'slug' => $this->generate_unique_slug($name, 'assembleia'),
+            'description' => sanitize_textarea_field($options['description'] ?? ''),
+            'status' => $options['status'] ?? 'scheduled',
+            'creator_id' => $creator_id,
+            'parent_instance_id' => $coletivo_id,
+            'settings' => json_encode([
+                'assembly_type' => $options['assembly_type'] ?? 'ordinary', // ordinary, extraordinary
+                'quorum_required' => $options['quorum_required'] ?? true,
+                'min_quorum_percentage' => $options['min_quorum_percentage'] ?? 50,
+                'voting_method' => $options['voting_method'] ?? 'consensus'
+            ]),
+            'metadata' => json_encode([
+                'scheduled_date' => $options['scheduled_date'] ?? null,
+                'scheduled_time' => $options['scheduled_time'] ?? null,
+                'location' => $options['location'] ?? '',
+                'agenda' => $options['agenda'] ?? '',
+                'is_extraordinary' => $options['is_extraordinary'] ?? false,
+                'convocation_notice_days' => $options['convocation_notice_days'] ?? 7,
+                'created_at' => current_time('mysql')
+            ])
+        ];
+
+        $result = $wpdb->insert($table_name, $assembly_data);
+        
+        if ($result === false) {
+            return new WP_Error('db_error', 'Erro ao criar assembleia');
+        }
+        
+        $assembly_id = $wpdb->insert_id;
+        
+        // Se for assembleia agendada, criar evento no calendário
+        if (!empty($options['scheduled_date'])) {
+            $this->create_assembly_calendar_event($assembly_id, $options);
+        }
+        
+        // Notificar membros do coletivo sobre a convocação
+        $this->notify_assembly_convocation($assembly_id, $coletivo_id);
+        
+        // Disparar hook
+        do_action('ql_assembly_created', $assembly_id, $coletivo_id);
+        
+        return $assembly_id;
+    }
+    
+    /**
+     * Agendar assembleia (para assembleias periódicas)
+     */
+    public function schedule_assembly($assembly_id, $schedule_data) {
+        $assembly = $this->get_instance_by_id($assembly_id);
+        if (!$assembly || $assembly->type !== 'assembleia') {
+            return new WP_Error('invalid_assembly', 'Assembleia não encontrada');
+        }
+        
+        // Validar dados do agendamento
+        if (empty($schedule_data['date']) || empty($schedule_data['time'])) {
+            return new WP_Error('invalid_schedule', 'Data e horário são obrigatórios');
+        }
+        
+        // Atualizar metadados da assembleia
+        $metadata = json_decode($assembly->metadata, true) ?: [];
+        $metadata['scheduled_date'] = sanitize_text_field($schedule_data['date']);
+        $metadata['scheduled_time'] = sanitize_text_field($schedule_data['time']);
+        $metadata['location'] = sanitize_text_field($schedule_data['location'] ?? '');
+        $metadata['agenda'] = sanitize_textarea_field($schedule_data['agenda'] ?? '');
+        $metadata['updated_at'] = current_time('mysql');
+        
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'ql_instances';
+        $result = $wpdb->update(
+            $table_name,
+            [
+                'status' => 'scheduled',
+                'metadata' => json_encode($metadata)
+            ],
+            ['id' => $assembly_id],
+            ['%s', '%s'],
+            ['%d']
+        );
+        
+        if ($result === false) {
+            return new WP_Error('db_error', 'Erro ao agendar assembleia');
+        }
+        
+        // Criar evento no calendário
+        $this->create_assembly_calendar_event($assembly_id, $schedule_data);
+        
+        // Disparar hook
+        do_action('ql_assembly_scheduled', $assembly_id, $schedule_data);
+        
+        return true;
+    }
+    
+    /**
+     * Adicionar membros territoriais à comunidade
+     */
+    private function add_territorial_members($community_id, $territory_scope) {
+        // Buscar usuários que pertencem ao território
+        $users = get_users([
+            'meta_query' => [
+                [
+                    'key' => 'ql_territory',
+                    'value' => $territory_scope,
+                    'compare' => 'LIKE'
+                ]
+            ]
+        ]);
+        
+        foreach ($users as $user) {
+            $this->add_member_to_instance($community_id, $user->ID, 'member');
+        }
+        
+        error_log("QL Instances: Added " . count($users) . " territorial members to community {$community_id}");
+    }
+    
+    /**
+     * Criar evento de calendário para assembleia
+     */
+    private function create_assembly_calendar_event($assembly_id, $schedule_data) {
+        if (!class_exists('QL_Calendar')) {
+            return;
+        }
+        
+        $calendar = QL_Calendar::get_instance();
+        
+        $assembly = $this->get_instance_by_id($assembly_id);
+        if (!$assembly) return;
+        
+        $event_data = [
+            'title' => $assembly->name,
+            'description' => $assembly->description . "\n\nAgenda:\n" . ($schedule_data['agenda'] ?? ''),
+            'event_type' => 'assembleia',
+            'event_date' => $schedule_data['date'],
+            'event_time' => $schedule_data['time'] ?? null,
+            'location' => $schedule_data['location'] ?? '',
+            'color' => '#dc3545', // Vermelho para assembleias
+            'project_id' => null // Assembleia é de nível organizacional
+        ];
+        
+        $event_id = $calendar->create_custom_event($event_data);
+        
+        if (!is_wp_error($event_id)) {
+            // Atualizar metadata da assembleia com ID do evento
+            $metadata = json_decode($assembly->metadata, true) ?: [];
+            $metadata['calendar_event_id'] = $event_id;
+            
+            global $wpdb;
+            $table_name = $wpdb->prefix . 'ql_instances';
+            $wpdb->update(
+                $table_name,
+                ['metadata' => json_encode($metadata)],
+                ['id' => $assembly_id],
+                ['%s'],
+                ['%d']
+            );
+            
+            error_log("QL Instances: Calendar event {$event_id} created for assembly {$assembly_id}");
+        }
+    }
+    
+    /**
+     * Notificar convocação de assembleia
+     */
+    private function notify_assembly_convocation($assembly_id, $coletivo_id) {
+        // Obter membros do coletivo
+        $members = $this->get_instance_members($coletivo_id);
+        
+        $assembly = $this->get_instance_by_id($assembly_id);
+        $metadata = json_decode($assembly->metadata, true) ?: [];
+        
+        $notification_data = [
+            'type' => 'assembly_convocation',
+            'assembly_id' => $assembly_id,
+            'assembly_name' => $assembly->name,
+            'scheduled_date' => $metadata['scheduled_date'] ?? null,
+            'scheduled_time' => $metadata['scheduled_time'] ?? null,
+            'location' => $metadata['location'] ?? '',
+            'agenda' => $metadata['agenda'] ?? ''
+        ];
+        
+        foreach ($members as $member) {
+            // Enviar notificação (por email, dashboard, etc.)
+            do_action('ql_send_assembly_notification', $member->user_id, $notification_data);
+        }
+        
+        error_log("QL Instances: Assembly convocation notifications sent to " . count($members) . " members");
+    }
+    
+    /**
+     * AJAX - Criar comunidade
+     */
+    public function ajax_create_community() {
+        if (!wp_verify_nonce($_POST['nonce'], 'ql_admin_nonce')) {
+            wp_die('Nonce inválido');
+        }
+        
+        if (!current_user_can('ql_manage_resources')) {
+            wp_send_json_error(['message' => 'Permissões insuficientes']);
+            return;
+        }
+        
+        $name = sanitize_text_field($_POST['name']);
+        $territory_scope = sanitize_text_field($_POST['territory_scope']);
+        $description = sanitize_textarea_field($_POST['description'] ?? '');
+        $auto_membership = !empty($_POST['auto_membership']);
+        
+        if (empty($name) || empty($territory_scope)) {
+            wp_send_json_error(['message' => 'Nome e escopo territorial são obrigatórios']);
+            return;
+        }
+        
+        $options = [
+            'description' => $description,
+            'auto_membership' => $auto_membership
+        ];
+        
+        $result = $this->create_community($name, $territory_scope, get_current_user_id(), $options);
+        
+        if (is_wp_error($result)) {
+            wp_send_json_error(['message' => $result->get_error_message()]);
+        } else {
+            wp_send_json_success([
+                'message' => 'Comunidade criada com sucesso',
+                'community_id' => $result
+            ]);
+        }
+    }
+    
+    /**
+     * AJAX - Criar assembleia
+     */
+    public function ajax_create_assembly() {
+        if (!wp_verify_nonce($_POST['nonce'], 'ql_admin_nonce')) {
+            wp_die('Nonce inválido');
+        }
+        
+        if (!current_user_can('ql_manage_consultations')) {
+            wp_send_json_error(['message' => 'Permissões insuficientes para convocar assembleias']);
+            return;
+        }
+        
+        $name = sanitize_text_field($_POST['name']);
+        $coletivo_id = intval($_POST['coletivo_id']);
+        $description = sanitize_textarea_field($_POST['description'] ?? '');
+        $is_extraordinary = !empty($_POST['is_extraordinary']);
+        
+        if (empty($name) || !$coletivo_id) {
+            wp_send_json_error(['message' => 'Nome e coletivo são obrigatórios']);
+            return;
+        }
+        
+        $options = [
+            'description' => $description,
+            'is_extraordinary' => $is_extraordinary,
+            'assembly_type' => $is_extraordinary ? 'extraordinary' : 'ordinary'
+        ];
+        
+        $result = $this->create_assembly($name, $coletivo_id, get_current_user_id(), $options);
+        
+        if (is_wp_error($result)) {
+            wp_send_json_error(['message' => $result->get_error_message()]);
+        } else {
+            wp_send_json_success([
+                'message' => 'Assembleia criada com sucesso',
+                'assembly_id' => $result
+            ]);
+        }
+    }
+    
+    /**
+     * AJAX - Agendar assembleia
+     */
+    public function ajax_schedule_assembly() {
+        if (!wp_verify_nonce($_POST['nonce'], 'ql_admin_nonce')) {
+            wp_die('Nonce inválido');
+        }
+        
+        if (!current_user_can('ql_manage_consultations')) {
+            wp_send_json_error(['message' => 'Permissões insuficientes']);
+            return;
+        }
+        
+        $assembly_id = intval($_POST['assembly_id']);
+        $date = sanitize_text_field($_POST['date']);
+        $time = sanitize_text_field($_POST['time']);
+        $location = sanitize_text_field($_POST['location'] ?? '');
+        $agenda = sanitize_textarea_field($_POST['agenda'] ?? '');
+        
+        if (!$assembly_id || empty($date) || empty($time)) {
+            wp_send_json_error(['message' => 'Assembly ID, data e horário são obrigatórios']);
+            return;
+        }
+        
+        $schedule_data = [
+            'date' => $date,
+            'time' => $time,
+            'location' => $location,
+            'agenda' => $agenda
+        ];
+        
+        $result = $this->schedule_assembly($assembly_id, $schedule_data);
+        
+        if (is_wp_error($result)) {
+            wp_send_json_error(['message' => $result->get_error_message()]);
+        } else {
+            wp_send_json_success(['message' => 'Assembleia agendada com sucesso']);
+        }
     }
 }

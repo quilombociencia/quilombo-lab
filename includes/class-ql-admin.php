@@ -26,9 +26,10 @@ class QL_Admin {
     
     /**
      * Adicionar menu administrativo
+     * Estrutura reformulada conforme modelo organizativo
      */
     public function add_admin_menu() {
-        // Menu principal
+        // Menu principal - Laboratório
         add_menu_page(
             __('Laboratório de Projetos', 'quilombo-lab'),
             __('Laboratório', 'quilombo-lab'),
@@ -39,7 +40,7 @@ class QL_Admin {
             30
         );
         
-        // Submenu Painel
+        // Submenu Painel (Dashboard principal)
         add_submenu_page(
             'quilombo-lab',
             __('Painel', 'quilombo-lab'),
@@ -59,9 +60,70 @@ class QL_Admin {
             [$this, 'projects_page']
         );
         
-        // Submenu Quadros (escondido do menu, acessado via parâmetro)
+        // Menu Organização - NOVO MENU PRINCIPAL
+        add_menu_page(
+            __('Organização', 'quilombo-lab'),
+            __('Organização', 'quilombo-lab'),
+            'read',
+            'quilombo-lab-organizacao',
+            [$this, 'organization_dashboard_page'],
+            'dashicons-groups',
+            31
+        );
+        
+        // Submenu Instâncias sob Organização
         add_submenu_page(
-            null, // Parent null = não aparece no menu
+            'quilombo-lab-organizacao',
+            __('Instâncias Organizacionais', 'quilombo-lab'),
+            __('🌐 Instâncias', 'quilombo-lab'),
+            'read',
+            'quilombo-lab-instances',
+            [$this, 'instances_page_wrapper']
+        );
+        
+        // Submenu Papéis sob Organização
+        add_submenu_page(
+            'quilombo-lab-organizacao',
+            __('Papéis Organizativos', 'quilombo-lab'),
+            __('🎭 Papéis', 'quilombo-lab'),
+            'read',
+            'quilombo-lab-roles',
+            [$this, 'roles_page_wrapper']
+        );
+        
+        // Submenu Responsabilidades sob Organização
+        add_submenu_page(
+            'quilombo-lab-organizacao',
+            __('Responsabilidades', 'quilombo-lab'),
+            __('⚙️ Responsabilidades', 'quilombo-lab'),
+            'read',
+            'quilombo-lab-responsibilities',
+            [$this, 'responsibilities_page']
+        );
+        
+        // Submenu Consultas e Consenso sob Organização
+        add_submenu_page(
+            'quilombo-lab-organizacao',
+            __('Participação (Consultas e Contestações)', 'quilombo-lab'),
+            __('🗳️ Participação', 'quilombo-lab'),
+            'read',
+            'quilombo-lab-consultations',
+            [$this, 'consultations_page']
+        );
+        
+        // Submenu Territórios sob Organização - PRIORIDADE 0
+        add_submenu_page(
+            'quilombo-lab-organizacao',
+            __('Territórios', 'quilombo-lab'),
+            __('🗺️ Territórios', 'quilombo-lab'),
+            'read',
+            'quilombo-lab-territories',
+            [$this, 'territories_page']
+        );
+        
+        // Páginas ocultas (acessadas via parâmetros)
+        add_submenu_page(
+            null,
             __('Quadros do Projeto', 'quilombo-lab'),
             __('Quadros', 'quilombo-lab'),
             'read',
@@ -69,9 +131,8 @@ class QL_Admin {
             [$this, 'project_boards_page']
         );
         
-        // Submenu Kanban (escondido do menu, acessado via parâmetro)
         add_submenu_page(
-            null, // Parent null = não aparece no menu
+            null,
             __('Kanban Board', 'quilombo-lab'),
             __('Kanban', 'quilombo-lab'),
             'read',
@@ -79,26 +140,15 @@ class QL_Admin {
             [$this, 'kanban_page']
         );
         
-        // Submenu Status
+        // Submenu Status mantido no menu principal
         add_submenu_page(
             'quilombo-lab',
             __('Status do Sistema', 'quilombo-lab'),
-            __('⚙️ Status', 'quilombo-lab'),
+            __('🔍 Status', 'quilombo-lab'),
             'read',
             'quilombo-lab-status',
             [$this, 'status_page']
         );
-        
-        // Submenu Dashboard Unificado
-        add_submenu_page(
-            'quilombo-lab',
-            __('Dashboard Unificado', 'quilombo-lab'),
-            __('🎯 Dashboard', 'quilombo-lab'),
-            'read',
-            'quilombo-lab-dashboard',
-            [$this, 'unified_dashboard_page']
-        );
-        
     }
     
     /**
@@ -468,6 +518,20 @@ class QL_Admin {
                             $stats = $this->get_project_stats($project->id);
                             ?>
                             <div class="ql-project-card">
+                                <?php 
+                                // Obter imagem do projeto
+                                $image_url = null;
+                                if (!empty($project->featured_image_id)) {
+                                    $image_url = wp_get_attachment_image_url($project->featured_image_id, 'medium');
+                                }
+                                ?>
+                                
+                                <?php if ($image_url): ?>
+                                    <div class="ql-project-image">
+                                        <img src="<?php echo esc_url($image_url); ?>" alt="<?php echo esc_attr($project->name); ?>" />
+                                    </div>
+                                <?php endif; ?>
+                                
                                 <div class="ql-project-header">
                                     <h3><?php echo esc_html($project->name); ?></h3>
                                     <span class="ql-status-badge ql-status-<?php echo $project->status; ?>">
@@ -541,9 +605,17 @@ class QL_Admin {
                                         <?php endif; ?>
                                     <?php endif; ?>
                                     
-                                    <button class="button" onclick="qlViewProjectDetails(<?php echo $project->id; ?>)">
-                                        <?php _e('👁️ Detalhes', 'quilombo-lab'); ?>
-                                    </button>
+                                    <?php 
+                                    $project_page_url = $this->get_project_page_url($project);
+                                    if ($project_page_url): ?>
+                                        <a href="<?php echo esc_url($project_page_url); ?>" class="button" target="_blank">
+                                            <?php _e('👁️ Ver Página', 'quilombo-lab'); ?>
+                                        </a>
+                                    <?php else: ?>
+                                        <button class="button" onclick="qlViewProjectDetails(<?php echo $project->id; ?>)">
+                                            <?php _e('👁️ Detalhes', 'quilombo-lab'); ?>
+                                        </button>
+                                    <?php endif; ?>
                                 </div>
                                 
                                 <?php if ($is_moodle_project): ?>
@@ -593,12 +665,47 @@ class QL_Admin {
             background: white;
             border: 1px solid #c3c4c7;
             border-radius: 4px;
-            padding: 20px;
+            padding: 0;
             display: flex;
             flex-direction: column;
-            height: 350px;
+            height: 400px;
             overflow: hidden;
             transition: box-shadow 0.2s ease;
+        }
+        
+        .ql-project-image {
+            width: 100%;
+            height: 150px;
+            overflow: hidden;
+            background: #f6f7f7;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .ql-project-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.2s ease;
+        }
+        
+        .ql-project-card:hover .ql-project-image img {
+            transform: scale(1.05);
+        }
+        
+        .ql-project-header {
+            padding: 20px 20px 0 20px;
+        }
+        
+        .ql-project-content {
+            padding: 0 20px 20px 20px;
+            flex: 1;
+        }
+        
+        .ql-project-actions {
+            padding: 0 20px 20px 20px;
+            margin-top: auto;
         }
         
         .ql-project-card:hover {
@@ -1584,6 +1691,64 @@ class QL_Admin {
         }
         </script>
         <?php
+    }
+    
+    /**
+     * Obter URL da página pública do projeto
+     */
+    private function get_project_page_url($project) {
+        global $wpdb;
+        
+        // 1. Verificar se existe página com meta ql_projeto_id (método primário)
+        $page_id = $wpdb->get_var($wpdb->prepare(
+            "SELECT post_id FROM {$wpdb->postmeta} 
+             WHERE meta_key = 'ql_projeto_id' AND meta_value = %s 
+             AND post_id IN (SELECT ID FROM {$wpdb->posts} WHERE post_status = 'publish')",
+            $project->id
+        ));
+        
+        if ($page_id) {
+            return get_permalink($page_id);
+        }
+        
+        // 2. Para projetos do Moodle, verificar se existe página mapeada via trilha_sync
+        if (!empty($project->moodle_course_id)) {
+            // Verificar se tabela existe
+            $table_exists = $wpdb->get_var("SHOW TABLES LIKE '{$wpdb->prefix}ql_trilha_mappings'");
+            if ($table_exists) {
+                $page_id = $wpdb->get_var($wpdb->prepare(
+                    "SELECT wp_page_id FROM {$wpdb->prefix}ql_trilha_mappings 
+                     WHERE ql_project_id = %d AND wp_page_id > 0",
+                    $project->id
+                ));
+                
+                if ($page_id) {
+                    return get_permalink($page_id);
+                }
+            }
+        }
+        
+        // 3. Verificar pelo ID do projeto GC se existir (para compatibilidade)
+        if (!empty($project->gc_projeto_id)) {
+            $page_id_gc = get_option('ql_projeto_page_' . $project->gc_projeto_id);
+            if ($page_id_gc && get_post_status($page_id_gc) === 'publish') {
+                return get_permalink($page_id_gc);
+            }
+        }
+        
+        // 4. Buscar página por slug/nome do projeto (fallback)
+        $page_slug = sanitize_title($project->name);
+        $page_by_slug = get_page_by_path($page_slug);
+        
+        if ($page_by_slug && $page_by_slug->post_status === 'publish') {
+            // Verificar se realmente é uma página de projeto
+            $is_project_page = get_post_meta($page_by_slug->ID, 'ql_is_projeto_page', true);
+            if ($is_project_page) {
+                return get_permalink($page_by_slug->ID);
+            }
+        }
+        
+        return null;
     }
     
     /**
@@ -4960,4 +5125,2345 @@ class QL_Admin {
             wp_die(__('Erro ao excluir projeto: ', 'quilombo-lab') . $e->getMessage());
         }
     }
+
+    /**
+     * Dashboard da Organização - Página principal do menu Organização
+     */
+    public function organization_dashboard_page() {
+        ?>
+        <div class="wrap">
+            <h1><?php _e('Dashboard da Organização', 'quilombo-lab'); ?></h1>
+            
+            <div class="ql-organization-dashboard">
+                <div class="ql-dashboard-grid">
+                    <!-- Cards de Resumo -->
+                    <div class="ql-dashboard-card ql-card-instances">
+                        <div class="ql-card-header">
+                            <span class="dashicons dashicons-groups"></span>
+                            <h3><?php _e('Instâncias Ativas', 'quilombo-lab'); ?></h3>
+                        </div>
+                        <div class="ql-card-content">
+                            <?php
+                            global $wpdb;
+                            $instances = $wpdb->get_results("
+                                SELECT type, COUNT(*) as count 
+                                FROM {$wpdb->prefix}ql_instances 
+                                WHERE status = 'active' 
+                                GROUP BY type
+                            ");
+                            
+                            if ($instances): ?>
+                                <ul class="ql-instance-list">
+                                    <?php foreach ($instances as $instance): ?>
+                                        <li>
+                                            <strong><?php echo ucfirst($instance->type); ?>:</strong>
+                                            <span class="ql-count"><?php echo $instance->count; ?></span>
+                                        </li>
+                                    <?php endforeach; ?>
+                                </ul>
+                            <?php else: ?>
+                                <p><?php _e('Nenhuma instância ativa encontrada.', 'quilombo-lab'); ?></p>
+                            <?php endif; ?>
+                        </div>
+                        <div class="ql-card-actions">
+                            <a href="<?php echo admin_url('admin.php?page=quilombo-lab-instances'); ?>" class="button">
+                                <?php _e('Ver Instâncias', 'quilombo-lab'); ?>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Card de Responsabilidades -->
+                    <div class="ql-dashboard-card ql-card-responsibilities">
+                        <div class="ql-card-header">
+                            <span class="dashicons dashicons-admin-users"></span>
+                            <h3><?php _e('Responsabilidades', 'quilombo-lab'); ?></h3>
+                        </div>
+                        <div class="ql-card-content">
+                            <?php
+                            if (class_exists('QL_Responsibility_System')) {
+                                $responsibilities = QL_Responsibility_System::RESPONSIBILITIES;
+                                $assigned_count = 0;
+                                $total_count = count($responsibilities);
+                                
+                                // Contar responsabilidades atribuídas
+                                $assigned_responsibilities = $wpdb->get_var("
+                                    SELECT COUNT(DISTINCT responsibility_type) 
+                                    FROM {$wpdb->prefix}ql_responsibility_assignments 
+                                    WHERE status = 'active'
+                                ");
+                                
+                                echo "<div class='ql-progress-circle'>";
+                                echo "<span class='ql-progress-text'>" . $assigned_responsibilities . "/" . $total_count . "</span>";
+                                echo "</div>";
+                                echo "<p>" . sprintf(__('%d de %d responsabilidades atribuídas', 'quilombo-lab'), $assigned_responsibilities, $total_count) . "</p>";
+                            }
+                            ?>
+                        </div>
+                        <div class="ql-card-actions">
+                            <a href="<?php echo admin_url('admin.php?page=quilombo-lab-responsibilities'); ?>" class="button">
+                                <?php _e('Gerenciar Responsabilidades', 'quilombo-lab'); ?>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Card de Consultas -->
+                    <div class="ql-dashboard-card ql-card-consultations">
+                        <div class="ql-card-header">
+                            <span class="dashicons dashicons-format-chat"></span>
+                            <h3><?php _e('Consultas Abertas', 'quilombo-lab'); ?></h3>
+                        </div>
+                        <div class="ql-card-content">
+                            <?php
+                            $open_consultations = $wpdb->get_var("
+                                SELECT COUNT(*) 
+                                FROM {$wpdb->prefix}ql_consultations 
+                                WHERE status = 'open'
+                            ");
+                            ?>
+                            <div class="ql-big-number"><?php echo $open_consultations; ?></div>
+                            <p><?php _e('consultas aguardando participação', 'quilombo-lab'); ?></p>
+                        </div>
+                        <div class="ql-card-actions">
+                            <a href="<?php echo admin_url('admin.php?page=quilombo-lab-consultations'); ?>" class="button">
+                                <?php _e('Ver Consultas', 'quilombo-lab'); ?>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Card de Contestações -->
+                    <div class="ql-dashboard-card ql-card-contestations">
+                        <div class="ql-card-header">
+                            <span class="dashicons dashicons-warning"></span>
+                            <h3><?php _e('Contestações Abertas', 'quilombo-lab'); ?></h3>
+                        </div>
+                        <div class="ql-card-content">
+                            <?php
+                            $open_contestations = 0;
+                            if (class_exists('QL_Contestations')) {
+                                $open_contestations = $wpdb->get_var("
+                                    SELECT COUNT(*) 
+                                    FROM {$wpdb->prefix}ql_contestations 
+                                    WHERE status IN ('open', 'under_review', 'community_vote')
+                                ");
+                            }
+                            ?>
+                            <div class="ql-big-number"><?php echo $open_contestations; ?></div>
+                            <p><?php _e('contestações em andamento', 'quilombo-lab'); ?></p>
+                        </div>
+                        <div class="ql-card-actions">
+                            <a href="<?php echo admin_url('admin.php?page=quilombo-lab-consultations#contestations'); ?>" class="button">
+                                <?php _e('Ver Contestações', 'quilombo-lab'); ?>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Atividades Recentes -->
+                <div class="ql-recent-activities">
+                    <h2><?php _e('Atividades Recentes', 'quilombo-lab'); ?></h2>
+                    <?php
+                    $recent_activities = $wpdb->get_results("
+                        SELECT 
+                            'responsibility' as type,
+                            CONCAT('Responsabilidade ', responsibility_type, ' atribuída a ', assigned_to_name) as description,
+                            created_at as date_created
+                        FROM {$wpdb->prefix}ql_responsibility_assignments 
+                        WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+                        
+                        UNION ALL
+                        
+                        SELECT 
+                            'consultation' as type,
+                            CONCAT('Nova consulta: ', title) as description,
+                            created_at as date_created
+                        FROM {$wpdb->prefix}ql_consultations 
+                        WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+                        
+                        ORDER BY date_created DESC
+                        LIMIT 10
+                    ");
+
+                    if ($recent_activities): ?>
+                        <ul class="ql-activity-list">
+                            <?php foreach ($recent_activities as $activity): ?>
+                                <li class="ql-activity-item ql-activity-<?php echo $activity->type; ?>">
+                                    <span class="ql-activity-description"><?php echo esc_html($activity->description); ?></span>
+                                    <span class="ql-activity-date"><?php echo human_time_diff(strtotime($activity->date_created), current_time('timestamp')) . ' atrás'; ?></span>
+                                </li>
+                            <?php endforeach; ?>
+                        </ul>
+                    <?php else: ?>
+                        <p><?php _e('Nenhuma atividade recente encontrada.', 'quilombo-lab'); ?></p>
+                    <?php endif; ?>
+                </div>
+            </div>
+
+            <style>
+            .ql-organization-dashboard {
+                margin-top: 20px;
+            }
+
+            .ql-dashboard-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                gap: 20px;
+                margin-bottom: 30px;
+            }
+
+            .ql-dashboard-card {
+                background: white;
+                border: 1px solid #c3c4c7;
+                border-radius: 8px;
+                overflow: hidden;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            }
+
+            .ql-card-header {
+                padding: 15px;
+                background: #f6f7f7;
+                border-bottom: 1px solid #e1e5e9;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+
+            .ql-card-header h3 {
+                margin: 0;
+                font-size: 16px;
+                font-weight: 600;
+            }
+
+            .ql-card-content {
+                padding: 20px;
+            }
+
+            .ql-card-actions {
+                padding: 15px;
+                background: #f9f9f9;
+                border-top: 1px solid #e1e5e9;
+            }
+
+            .ql-big-number {
+                font-size: 48px;
+                font-weight: bold;
+                color: #2271b1;
+                line-height: 1;
+                margin-bottom: 10px;
+            }
+
+            .ql-instance-list {
+                list-style: none;
+                padding: 0;
+                margin: 0;
+            }
+
+            .ql-instance-list li {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 8px 0;
+                border-bottom: 1px solid #f0f0f0;
+            }
+
+            .ql-count {
+                background: #2271b1;
+                color: white;
+                padding: 4px 8px;
+                border-radius: 12px;
+                font-size: 12px;
+                font-weight: 600;
+            }
+
+            .ql-progress-circle {
+                width: 60px;
+                height: 60px;
+                border-radius: 50%;
+                border: 4px solid #e1e5e9;
+                border-top: 4px solid #2271b1;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin: 0 auto 15px;
+                position: relative;
+            }
+
+            .ql-progress-text {
+                font-size: 14px;
+                font-weight: 600;
+                color: #2271b1;
+            }
+
+            .ql-recent-activities {
+                background: white;
+                border: 1px solid #c3c4c7;
+                border-radius: 8px;
+                padding: 20px;
+            }
+
+            .ql-activity-list {
+                list-style: none;
+                padding: 0;
+                margin: 0;
+            }
+
+            .ql-activity-item {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 12px;
+                margin-bottom: 8px;
+                background: #f9f9f9;
+                border-radius: 6px;
+                border-left: 4px solid #2271b1;
+            }
+
+            .ql-activity-responsibility {
+                border-left-color: #27ae60;
+            }
+
+            .ql-activity-consultation {
+                border-left-color: #e74c3c;
+            }
+
+            .ql-activity-description {
+                flex: 1;
+                font-weight: 500;
+            }
+
+            .ql-activity-date {
+                font-size: 12px;
+                color: #6c757d;
+            }
+            </style>
+        </div>
+        <?php
+    }
+
+    /**
+     * Página de Gerenciamento de Responsabilidades
+     */
+    public function responsibilities_page() {
+        ?>
+        <div class="wrap">
+            <h1><?php _e('Gerenciamento de Responsabilidades', 'quilombo-lab'); ?></h1>
+            
+            <div class="ql-responsibilities-container">
+                <?php if (class_exists('QL_Responsibility_System')): ?>
+                    
+                    <!-- Sistema de Responsabilidades Radiculares -->
+                    <div class="ql-responsibilities-overview">
+                        <h2><?php _e('Sistema Radicular de Responsabilidades', 'quilombo-lab'); ?></h2>
+                        <p><?php _e('O modelo radicular distribui responsabilidades de forma não-hierárquica, promovendo autonomia e colaboração.', 'quilombo-lab'); ?></p>
+                        
+                        <div class="ql-responsibilities-grid">
+                            <?php
+                            $responsibilities = QL_Responsibility_System::RESPONSIBILITIES;
+                            global $wpdb;
+                            
+                            foreach ($responsibilities as $key => $responsibility):
+                                // Verificar quem tem esta responsabilidade atribuída
+                                $assignments = $wpdb->get_results($wpdb->prepare("
+                                    SELECT assigned_to_name, assigned_to_id, instance_id, created_at
+                                    FROM {$wpdb->prefix}ql_responsibility_assignments 
+                                    WHERE responsibility_type = %s AND status = 'active'
+                                    ORDER BY created_at DESC
+                                ", $key));
+                            ?>
+                                <div class="ql-responsibility-card" style="border-left: 4px solid <?php echo $responsibility['color']; ?>">
+                                    <div class="ql-responsibility-header">
+                                        <span class="dashicons <?php echo $responsibility['icon']; ?>" style="color: <?php echo $responsibility['color']; ?>"></span>
+                                        <h3><?php echo $responsibility['label']; ?></h3>
+                                    </div>
+                                    
+                                    <div class="ql-responsibility-description">
+                                        <p><?php echo $responsibility['description']; ?></p>
+                                    </div>
+                                    
+                                    <div class="ql-responsibility-tasks">
+                                        <strong><?php _e('Tarefas:', 'quilombo-lab'); ?></strong>
+                                        <ul>
+                                            <?php foreach ($responsibility['tasks'] as $task): ?>
+                                                <li><?php echo $task; ?></li>
+                                            <?php endforeach; ?>
+                                        </ul>
+                                    </div>
+                                    
+                                    <div class="ql-responsibility-actions">
+                                        <strong><?php _e('Ações:', 'quilombo-lab'); ?></strong>
+                                        <div class="ql-action-tags">
+                                            <?php foreach ($responsibility['actions'] as $action): ?>
+                                                <span class="ql-action-tag"><?php echo $action; ?></span>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="ql-responsibility-assignments">
+                                        <strong><?php _e('Atribuições Ativas:', 'quilombo-lab'); ?></strong>
+                                        <?php if ($assignments): ?>
+                                            <ul class="ql-assignment-list">
+                                                <?php foreach ($assignments as $assignment): ?>
+                                                    <li>
+                                                        <span class="ql-assigned-person"><?php echo esc_html($assignment->assigned_to_name); ?></span>
+                                                        <span class="ql-assignment-date"><?php echo human_time_diff(strtotime($assignment->created_at), current_time('timestamp')) . ' atrás'; ?></span>
+                                                    </li>
+                                                <?php endforeach; ?>
+                                            </ul>
+                                        <?php else: ?>
+                                            <p class="ql-no-assignments"><?php _e('Nenhuma atribuição ativa', 'quilombo-lab'); ?></p>
+                                        <?php endif; ?>
+                                    </div>
+                                    
+                                    <div class="ql-responsibility-actions-buttons">
+                                        <button class="button button-primary ql-assign-responsibility" 
+                                                data-responsibility="<?php echo $key; ?>"
+                                                data-label="<?php echo $responsibility['label']; ?>">
+                                            <?php _e('Atribuir Responsabilidade', 'quilombo-lab'); ?>
+                                        </button>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+
+                <?php else: ?>
+                    <div class="notice notice-warning">
+                        <p><?php _e('Sistema de Responsabilidades não está ativo. Verifique se a classe QL_Responsibility_System está carregada.', 'quilombo-lab'); ?></p>
+                    </div>
+                <?php endif; ?>
+            </div>
+
+            <style>
+            .ql-responsibilities-container {
+                margin-top: 20px;
+            }
+
+            .ql-responsibilities-overview {
+                background: white;
+                border: 1px solid #c3c4c7;
+                border-radius: 8px;
+                padding: 20px;
+                margin-bottom: 20px;
+            }
+
+            .ql-responsibilities-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+                gap: 20px;
+                margin-top: 20px;
+            }
+
+            .ql-responsibility-card {
+                background: white;
+                border: 1px solid #e1e5e9;
+                border-radius: 8px;
+                padding: 20px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            }
+
+            .ql-responsibility-header {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                margin-bottom: 15px;
+            }
+
+            .ql-responsibility-header h3 {
+                margin: 0;
+                font-size: 18px;
+                font-weight: 600;
+            }
+
+            .ql-responsibility-description {
+                margin-bottom: 15px;
+                color: #555;
+            }
+
+            .ql-responsibility-tasks ul,
+            .ql-assignment-list {
+                list-style: none;
+                padding: 0;
+                margin: 10px 0;
+            }
+
+            .ql-responsibility-tasks li,
+            .ql-assignment-list li {
+                padding: 5px 0;
+                border-bottom: 1px solid #f0f0f0;
+            }
+
+            .ql-action-tags {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 5px;
+                margin-top: 10px;
+            }
+
+            .ql-action-tag {
+                background: #f0f0f0;
+                padding: 4px 8px;
+                border-radius: 4px;
+                font-size: 12px;
+                color: #555;
+            }
+
+            .ql-assignment-list li {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+
+            .ql-assigned-person {
+                font-weight: 600;
+            }
+
+            .ql-assignment-date {
+                font-size: 12px;
+                color: #6c757d;
+            }
+
+            .ql-no-assignments {
+                color: #999;
+                font-style: italic;
+                margin: 10px 0;
+            }
+
+            .ql-responsibility-actions-buttons {
+                margin-top: 15px;
+                text-align: right;
+            }
+            </style>
+        </div>
+        <?php
+    }
+
+    /**
+     * Página de Consultas
+     */
+    public function consultations_page() {
+        ?>
+        <div class="wrap">
+            <h1><?php _e('Sistema de Consultas, Consensos e Contestações', 'quilombo-lab'); ?></h1>
+            
+            <!-- Navegação por abas -->
+            <nav class="nav-tab-wrapper">
+                <a href="#consultations" class="nav-tab nav-tab-active" data-tab="consultations"><?php _e('Consultas', 'quilombo-lab'); ?></a>
+                <a href="#contestations" class="nav-tab" data-tab="contestations"><?php _e('Contestações', 'quilombo-lab'); ?></a>
+            </nav>
+            
+            <!-- Aba de Consultas -->
+            <div id="consultations-tab" class="ql-tab-content ql-consultations-container">
+                <!-- Botão para criar nova consulta -->
+                <div class="ql-consultations-header">
+                    <button class="button button-primary" id="ql-new-consultation">
+                        <?php _e('Nova Consulta', 'quilombo-lab'); ?>
+                    </button>
+                </div>
+
+                <?php
+                global $wpdb;
+                $consultations = $wpdb->get_results("
+                    SELECT c.*, 
+                           COUNT(cv.id) as total_votes,
+                           SUM(CASE WHEN cv.vote_type = 'support' THEN 1 ELSE 0 END) as support_votes,
+                           SUM(CASE WHEN cv.vote_type = 'concern' THEN 1 ELSE 0 END) as concern_votes,
+                           SUM(CASE WHEN cv.vote_type = 'block' THEN 1 ELSE 0 END) as block_votes
+                    FROM {$wpdb->prefix}ql_consultations c
+                    LEFT JOIN {$wpdb->prefix}ql_consultation_votes cv ON c.id = cv.consultation_id
+                    GROUP BY c.id
+                    ORDER BY c.created_at DESC
+                ");
+
+                if ($consultations): ?>
+                    <div class="ql-consultations-list">
+                        <?php foreach ($consultations as $consultation): ?>
+                            <div class="ql-consultation-card ql-consultation-<?php echo $consultation->status; ?>">
+                                <div class="ql-consultation-header">
+                                    <h3><?php echo esc_html($consultation->title); ?></h3>
+                                    <div class="ql-consultation-meta">
+                                        <span class="ql-consultation-status ql-status-<?php echo $consultation->status; ?>">
+                                            <?php echo ucfirst($consultation->status); ?>
+                                        </span>
+                                        <span class="ql-consultation-type">
+                                            <?php echo ucfirst($consultation->consultation_type); ?>
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div class="ql-consultation-description">
+                                    <p><?php echo esc_html($consultation->description); ?></p>
+                                </div>
+
+                                <?php if ($consultation->status === 'open'): ?>
+                                    <!-- Sistema de votação por consenso -->
+                                    <div class="ql-voting-section">
+                                        <h4><?php _e('Sua Posição:', 'quilombo-lab'); ?></h4>
+                                        <div class="ql-voting-options">
+                                            <button class="ql-vote-btn ql-vote-support" 
+                                                    data-consultation="<?php echo $consultation->id; ?>" 
+                                                    data-vote="support">
+                                                👍 <?php _e('Apoio', 'quilombo-lab'); ?>
+                                            </button>
+                                            <button class="ql-vote-btn ql-vote-concern" 
+                                                    data-consultation="<?php echo $consultation->id; ?>" 
+                                                    data-vote="concern">
+                                                🤔 <?php _e('Tenho Preocupações', 'quilombo-lab'); ?>
+                                            </button>
+                                            <button class="ql-vote-btn ql-vote-block" 
+                                                    data-consultation="<?php echo $consultation->id; ?>" 
+                                                    data-vote="block">
+                                                ✋ <?php _e('Bloqueio', 'quilombo-lab'); ?>
+                                            </button>
+                                        </div>
+                                    </div>
+                                <?php endif; ?>
+
+                                <!-- Resultados da votação -->
+                                <div class="ql-voting-results">
+                                    <h4><?php _e('Resultados:', 'quilombo-lab'); ?></h4>
+                                    <div class="ql-vote-bars">
+                                        <div class="ql-vote-bar">
+                                            <span class="ql-vote-label">👍 Apoio:</span>
+                                            <div class="ql-vote-progress">
+                                                <div class="ql-vote-fill ql-vote-support-fill" 
+                                                     style="width: <?php echo $consultation->total_votes > 0 ? ($consultation->support_votes / $consultation->total_votes * 100) : 0; ?>%"></div>
+                                            </div>
+                                            <span class="ql-vote-count"><?php echo $consultation->support_votes; ?></span>
+                                        </div>
+                                        
+                                        <div class="ql-vote-bar">
+                                            <span class="ql-vote-label">🤔 Preocupações:</span>
+                                            <div class="ql-vote-progress">
+                                                <div class="ql-vote-fill ql-vote-concern-fill" 
+                                                     style="width: <?php echo $consultation->total_votes > 0 ? ($consultation->concern_votes / $consultation->total_votes * 100) : 0; ?>%"></div>
+                                            </div>
+                                            <span class="ql-vote-count"><?php echo $consultation->concern_votes; ?></span>
+                                        </div>
+                                        
+                                        <div class="ql-vote-bar">
+                                            <span class="ql-vote-label">✋ Bloqueios:</span>
+                                            <div class="ql-vote-progress">
+                                                <div class="ql-vote-fill ql-vote-block-fill" 
+                                                     style="width: <?php echo $consultation->total_votes > 0 ? ($consultation->block_votes / $consultation->total_votes * 100) : 0; ?>%"></div>
+                                            </div>
+                                            <span class="ql-vote-count"><?php echo $consultation->block_votes; ?></span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="ql-consultation-summary">
+                                        <p><strong><?php echo $consultation->total_votes; ?></strong> <?php _e('participantes votaram', 'quilombo-lab'); ?></p>
+                                        
+                                        <?php if ($consultation->block_votes > 0): ?>
+                                            <p class="ql-consensus-status ql-blocked">
+                                                ❌ <?php _e('Proposta bloqueada - necessário revisar preocupações', 'quilombo-lab'); ?>
+                                            </p>
+                                        <?php elseif ($consultation->concern_votes > 0): ?>
+                                            <p class="ql-consensus-status ql-concerns">
+                                                ⚠️ <?php _e('Preocupações levantadas - diálogo necessário', 'quilombo-lab'); ?>
+                                            </p>
+                                        <?php elseif ($consultation->support_votes >= 3): ?>
+                                            <p class="ql-consensus-status ql-consensus">
+                                                ✅ <?php _e('Consenso alcançado!', 'quilombo-lab'); ?>
+                                            </p>
+                                        <?php else: ?>
+                                            <p class="ql-consensus-status ql-pending">
+                                                ⏳ <?php _e('Aguardando mais participações', 'quilombo-lab'); ?>
+                                            </p>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+
+                                <div class="ql-consultation-footer">
+                                    <span class="ql-consultation-date">
+                                        <?php echo sprintf(__('Criada %s', 'quilombo-lab'), human_time_diff(strtotime($consultation->created_at), current_time('timestamp')) . ' atrás'); ?>
+                                    </span>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php else: ?>
+                    <div class="ql-no-consultations">
+                        <p><?php _e('Nenhuma consulta encontrada. Crie a primeira consulta para iniciar o processo de tomada de decisões participativa.', 'quilombo-lab'); ?></p>
+                    </div>
+                <?php endif; ?>
+            </div>
+            
+            <!-- Aba de Contestações -->
+            <div id="contestations-tab" class="ql-tab-content ql-contestations-container" style="display: none;">
+                <!-- Botão para criar nova contestação -->
+                <div class="ql-contestations-header">
+                    <button class="button button-primary" id="ql-new-contestation">
+                        <?php _e('Nova Contestação', 'quilombo-lab'); ?>
+                    </button>
+                </div>
+
+                <?php
+                // Verificar se a classe de contestações está carregada
+                if (class_exists('QL_Contestations')) {
+                    // Buscar contestações existentes
+                    $contestations = $wpdb->get_results("
+                        SELECT c.*, 
+                               COUNT(cv.id) as total_votes,
+                               SUM(CASE WHEN cv.vote_type = 'support_contestation' THEN cv.vote_weight ELSE 0 END) as support_contestation_weight,
+                               SUM(CASE WHEN cv.vote_type = 'support_response' THEN cv.vote_weight ELSE 0 END) as support_response_weight
+                        FROM {$wpdb->prefix}ql_contestations c
+                        LEFT JOIN {$wpdb->prefix}ql_contestation_votes cv ON c.id = cv.contestation_id
+                        GROUP BY c.id
+                        ORDER BY c.created_at DESC
+                    ");
+
+                    if ($contestations): ?>
+                        <div class="ql-contestations-list">
+                            <?php foreach ($contestations as $contestation): ?>
+                                <div class="ql-contestation-card ql-contestation-<?php echo $contestation->status; ?>">
+                                    <div class="ql-contestation-header">
+                                        <h3><?php echo esc_html($contestation->title); ?></h3>
+                                        <div class="ql-contestation-meta">
+                                            <span class="ql-contestation-status ql-status-<?php echo $contestation->status; ?>">
+                                                <?php echo ucfirst(str_replace('_', ' ', $contestation->status)); ?>
+                                            </span>
+                                            <span class="ql-contestation-urgency ql-urgency-<?php echo $contestation->urgency_level; ?>">
+                                                <?php echo ucfirst($contestation->urgency_level); ?>
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div class="ql-contestation-details">
+                                        <div class="ql-target-description">
+                                            <h4><?php _e('Alvo da Contestação:', 'quilombo-lab'); ?></h4>
+                                            <p><?php echo esc_html($contestation->target_description); ?></p>
+                                        </div>
+                                        
+                                        <div class="ql-contestation-description">
+                                            <h4><?php _e('Descrição:', 'quilombo-lab'); ?></h4>
+                                            <p><?php echo nl2br(esc_html($contestation->description)); ?></p>
+                                        </div>
+                                    </div>
+
+                                    <div class="ql-contestation-footer">
+                                        <span class="ql-contestation-author">
+                                            <?php 
+                                            $author = get_userdata($contestation->author_id);
+                                            echo sprintf(__('Criada por %s', 'quilombo-lab'), esc_html($author->display_name)); 
+                                            ?>
+                                        </span>
+                                        <span class="ql-contestation-date">
+                                            <?php echo human_time_diff(strtotime($contestation->created_at), current_time('timestamp')) . ' atrás'; ?>
+                                        </span>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php else: ?>
+                        <div class="ql-no-contestations">
+                            <p><?php _e('Nenhuma contestação encontrada. As contestações permitem questionar ações de responsabilidades de forma transparente e participativa.', 'quilombo-lab'); ?></p>
+                        </div>
+                    <?php endif; ?>
+                } else { ?>
+                    <div class="notice notice-warning">
+                        <p><?php _e('Sistema de Contestações não está ativo. Verifique se a classe QL_Contestations está carregada.', 'quilombo-lab'); ?></p>
+                    </div>
+                <?php } ?>
+            </div>
+
+            <style>
+            .ql-consultations-container {
+                margin-top: 20px;
+            }
+
+            .ql-consultations-header {
+                margin-bottom: 20px;
+            }
+
+            .ql-consultations-list {
+                display: grid;
+                gap: 20px;
+            }
+
+            .ql-consultation-card {
+                background: white;
+                border: 1px solid #e1e5e9;
+                border-radius: 8px;
+                padding: 20px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+                border-left: 4px solid #ddd;
+            }
+
+            .ql-consultation-open {
+                border-left-color: #3498db;
+            }
+
+            .ql-consultation-closed {
+                border-left-color: #95a5a6;
+            }
+
+            .ql-consultation-consensus {
+                border-left-color: #27ae60;
+            }
+
+            .ql-consultation-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+                margin-bottom: 15px;
+            }
+
+            .ql-consultation-header h3 {
+                margin: 0;
+                flex: 1;
+            }
+
+            .ql-consultation-meta {
+                display: flex;
+                gap: 10px;
+            }
+
+            .ql-consultation-status,
+            .ql-consultation-type {
+                padding: 4px 8px;
+                border-radius: 4px;
+                font-size: 12px;
+                font-weight: 600;
+            }
+
+            .ql-status-open {
+                background: #3498db;
+                color: white;
+            }
+
+            .ql-status-closed {
+                background: #95a5a6;
+                color: white;
+            }
+
+            .ql-status-consensus {
+                background: #27ae60;
+                color: white;
+            }
+
+            .ql-consultation-type {
+                background: #f0f0f0;
+                color: #555;
+            }
+
+            .ql-voting-section {
+                margin: 20px 0;
+                padding: 15px;
+                background: #f9f9f9;
+                border-radius: 6px;
+            }
+
+            .ql-voting-options {
+                display: flex;
+                gap: 10px;
+                margin-top: 10px;
+            }
+
+            .ql-vote-btn {
+                padding: 10px 15px;
+                border: 2px solid transparent;
+                border-radius: 6px;
+                cursor: pointer;
+                transition: all 0.2s;
+                font-weight: 600;
+            }
+
+            .ql-vote-support {
+                background: #e8f5e8;
+                color: #27ae60;
+                border-color: #27ae60;
+            }
+
+            .ql-vote-concern {
+                background: #fff3cd;
+                color: #f39c12;
+                border-color: #f39c12;
+            }
+
+            .ql-vote-block {
+                background: #f8d7da;
+                color: #e74c3c;
+                border-color: #e74c3c;
+            }
+
+            .ql-vote-btn:hover {
+                opacity: 0.8;
+            }
+
+            .ql-voting-results {
+                margin-top: 20px;
+            }
+
+            .ql-vote-bar {
+                display: flex;
+                align-items: center;
+                margin-bottom: 10px;
+                gap: 10px;
+            }
+
+            .ql-vote-label {
+                min-width: 120px;
+                font-size: 14px;
+            }
+
+            .ql-vote-progress {
+                flex: 1;
+                height: 20px;
+                background: #f0f0f0;
+                border-radius: 10px;
+                overflow: hidden;
+            }
+
+            .ql-vote-fill {
+                height: 100%;
+                transition: width 0.3s ease;
+            }
+
+            .ql-vote-support-fill {
+                background: #27ae60;
+            }
+
+            .ql-vote-concern-fill {
+                background: #f39c12;
+            }
+
+            .ql-vote-block-fill {
+                background: #e74c3c;
+            }
+
+            .ql-vote-count {
+                min-width: 30px;
+                text-align: right;
+                font-weight: 600;
+            }
+
+            .ql-consensus-status {
+                margin-top: 15px;
+                padding: 10px;
+                border-radius: 6px;
+                font-weight: 600;
+            }
+
+            .ql-consensus {
+                background: #e8f5e8;
+                color: #27ae60;
+            }
+
+            .ql-concerns {
+                background: #fff3cd;
+                color: #f39c12;
+            }
+
+            .ql-blocked {
+                background: #f8d7da;
+                color: #e74c3c;
+            }
+
+            .ql-pending {
+                background: #e2e3e5;
+                color: #6c757d;
+            }
+
+            .ql-consultation-footer {
+                margin-top: 15px;
+                padding-top: 15px;
+                border-top: 1px solid #f0f0f0;
+            }
+
+            .ql-consultation-date {
+                color: #6c757d;
+                font-size: 14px;
+            }
+
+            .ql-no-consultations {
+                text-align: center;
+                padding: 40px;
+                color: #6c757d;
+            }
+            
+            /* Estilos para navegação por abas */
+            .nav-tab-wrapper {
+                margin: 20px 0;
+            }
+            
+            .ql-tab-content {
+                margin-top: 20px;
+            }
+            
+            /* Estilos para contestações */
+            .ql-contestations-container {
+                margin-top: 20px;
+            }
+            
+            .ql-contestations-header {
+                margin-bottom: 20px;
+            }
+            
+            .ql-contestations-list {
+                display: grid;
+                gap: 20px;
+            }
+            
+            .ql-contestation-card {
+                background: white;
+                border: 1px solid #e1e5e9;
+                border-radius: 8px;
+                padding: 20px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+                border-left: 4px solid #ddd;
+            }
+            
+            .ql-contestation-open {
+                border-left-color: #e74c3c;
+            }
+            
+            .ql-contestation-under_review {
+                border-left-color: #f39c12;
+            }
+            
+            .ql-contestation-community_vote {
+                border-left-color: #3498db;
+            }
+            
+            .ql-contestation-resolved {
+                border-left-color: #27ae60;
+            }
+            
+            .ql-contestation-dismissed {
+                border-left-color: #95a5a6;
+            }
+            
+            .ql-contestation-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+                margin-bottom: 15px;
+            }
+            
+            .ql-contestation-header h3 {
+                margin: 0;
+                flex: 1;
+                margin-right: 15px;
+            }
+            
+            .ql-contestation-meta {
+                display: flex;
+                flex-direction: column;
+                gap: 5px;
+                align-items: flex-end;
+            }
+            
+            .ql-contestation-status,
+            .ql-contestation-urgency {
+                padding: 4px 8px;
+                border-radius: 4px;
+                font-size: 12px;
+                font-weight: 600;
+                color: white;
+            }
+            
+            .ql-status-open {
+                background: #e74c3c;
+            }
+            
+            .ql-status-under_review {
+                background: #f39c12;
+            }
+            
+            .ql-status-community_vote {
+                background: #3498db;
+            }
+            
+            .ql-status-resolved {
+                background: #27ae60;
+            }
+            
+            .ql-status-dismissed {
+                background: #95a5a6;
+            }
+            
+            .ql-urgency-low {
+                background: #95a5a6;
+            }
+            
+            .ql-urgency-medium {
+                background: #f39c12;
+            }
+            
+            .ql-urgency-high {
+                background: #e74c3c;
+            }
+            
+            .ql-urgency-critical {
+                background: #8e44ad;
+            }
+            
+            .ql-contestation-details {
+                margin-bottom: 20px;
+            }
+            
+            .ql-contestation-details h4 {
+                margin: 15px 0 5px 0;
+                font-size: 14px;
+                font-weight: 600;
+                color: #2c3e50;
+            }
+            
+            .ql-contestation-details p {
+                margin: 5px 0;
+                line-height: 1.5;
+            }
+            
+            .ql-contestation-footer {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding-top: 15px;
+                border-top: 1px solid #f0f0f0;
+                font-size: 14px;
+                color: #6c757d;
+            }
+            
+            .ql-no-contestations {
+                text-align: center;
+                padding: 40px;
+                color: #6c757d;
+            }
+            
+            /* Estilos para votação de contestações */
+            .ql-vote-contestation-fill {
+                background: #e74c3c;
+            }
+            
+            .ql-vote-response-fill {
+                background: #27ae60;
+            }
+            
+            .ql-vote-mediation-fill {
+                background: #3498db;
+            }
+            
+            .ql-vote-weight {
+                min-width: 40px;
+                text-align: right;
+                font-weight: 600;
+            }
+            </style>
+            
+            <script>
+            jQuery(document).ready(function($) {
+                // Navegação por abas
+                $('.nav-tab').on('click', function(e) {
+                    e.preventDefault();
+                    
+                    // Remover classe ativa de todas as abas
+                    $('.nav-tab').removeClass('nav-tab-active');
+                    $('.ql-tab-content').hide();
+                    
+                    // Ativar aba clicada
+                    $(this).addClass('nav-tab-active');
+                    var tabId = $(this).data('tab');
+                    $('#' + tabId + '-tab').show();
+                });
+                
+                // Abrir modal de nova contestação
+                $('#ql-new-contestation').on('click', function() {
+                    // Implementar modal de nova contestação
+                    alert('Modal de nova contestação será implementado');
+                });
+            });
+            </script>
+        </div>
+        <?php
+    }
+
+    /**
+     * Wrapper para página de instâncias - chama o método da classe QL_Instances
+     */
+    public function instances_page_wrapper() {
+        if (class_exists('QL_Instances')) {
+            $instances = QL_Instances::get_instance();
+            $instances->admin_page();
+        } else {
+            ?>
+            <div class="wrap">
+                <h1><?php _e('Instâncias Organizacionais', 'quilombo-lab'); ?></h1>
+                <div class="notice notice-error">
+                    <p><?php _e('Classe QL_Instances não está disponível. Verifique se o plugin está funcionando corretamente.', 'quilombo-lab'); ?></p>
+                </div>
+            </div>
+            <?php
+        }
+    }
+
+    /**
+     * Wrapper para página de papéis - chama o método da classe QL_Organizational_Roles
+     */
+    public function roles_page_wrapper() {
+        if (class_exists('QL_Organizational_Roles')) {
+            $roles = QL_Organizational_Roles::get_instance();
+            $roles->admin_page();
+        } else {
+            ?>
+            <div class="wrap">
+                <h1><?php _e('Papéis Organizativos', 'quilombo-lab'); ?></h1>
+                <div class="notice notice-error">
+                    <p><?php _e('Classe QL_Organizational_Roles não está disponível. Verifique se o plugin está funcionando corretamente.', 'quilombo-lab'); ?></p>
+                </div>
+            </div>
+            <?php
+        }
+    }
+
+    /**
+     * Página de Territórios - PRIORIDADE 0
+     */
+    public function territories_page() {
+        ?>
+        <div class="wrap">
+            <h1><?php _e("Sistema de Territorialização", "quilombo-lab"); ?></h1>
+            <p class="description">
+                <?php _e("Gerencie territórios para organização territorial do coletivo. Territórios podem ser desde um edifício até regiões extensas.", "quilombo-lab"); ?>
+            </p>
+            
+            <!-- Navegação por abas -->
+            <nav class="nav-tab-wrapper">
+                <a href="#territories" class="nav-tab nav-tab-active" data-tab="territories"><?php _e("Territórios", "quilombo-lab"); ?></a>
+                <a href="#map-view" class="nav-tab" data-tab="map-view"><?php _e("Mapa Geral", "quilombo-lab"); ?></a>
+                <a href="#user-location" class="nav-tab" data-tab="user-location"><?php _e("Minha Localização", "quilombo-lab"); ?></a>
+                <?php if (current_user_can('manage_options')) : ?>
+                <a href="#admin-tools" class="nav-tab" data-tab="admin-tools"><?php _e("Ferramentas Admin", "quilombo-lab"); ?></a>
+                <?php endif; ?>
+            </nav>
+            
+            <!-- Aba de Territórios -->
+            <div id="territories-tab" class="ql-tab-content">
+                <div class="ql-territories-header" style="margin: 20px 0;">
+                    <button type="button" id="create-territory-btn" class="button button-primary">
+                        <?php _e("+ Novo Território", "quilombo-lab"); ?>
+                    </button>
+                    <a href="<?php echo admin_url("edit.php?post_type=ql_territory"); ?>" class="button">
+                        <?php _e("Gerenciar Territórios", "quilombo-lab"); ?>
+                    </a>
+                </div>
+                
+                <!-- Modal para criar território -->
+                <div id="create-territory-modal" style="display: none;">
+                    <div class="ql-modal-overlay">
+                        <div class="ql-modal-content">
+                            <div class="ql-modal-header">
+                                <h3><?php _e("Criar Novo Território", "quilombo-lab"); ?></h3>
+                                <button type="button" class="ql-modal-close">&times;</button>
+                            </div>
+                            <div class="ql-modal-body">
+                                <form id="territory-creation-form">
+                                    <div class="form-field">
+                                        <label for="territory_name"><?php _e("Nome do Território", "quilombo-lab"); ?></label>
+                                        <input type="text" id="territory_name" name="territory_name" class="regular-text" required />
+                                    </div>
+                                    
+                                    <div class="form-field">
+                                        <label for="territory_type"><?php _e("Tipo de Território", "quilombo-lab"); ?></label>
+                                        <select id="territory_type" name="territory_type" class="regular-text">
+                                            <?php $this->render_territory_type_options(); ?>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="form-field">
+                                        <label for="location_method"><?php _e("Definir Localização", "quilombo-lab"); ?></label>
+                                        <select id="location_method" name="location_method" class="regular-text">
+                                            <option value="nucleo"><?php _e("Usar endereço de um núcleo", "quilombo-lab"); ?></option>
+                                            <option value="address"><?php _e("Digite novo endereço", "quilombo-lab"); ?></option>
+                                            <option value="map"><?php _e("Selecionar no mapa", "quilombo-lab"); ?></option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div id="nucleo-selection" class="form-field">
+                                        <label for="territory_nucleo"><?php _e("Núcleo de Referência", "quilombo-lab"); ?></label>
+                                        <select id="territory_nucleo" name="territory_nucleo" class="regular-text">
+                                            <option value=""><?php _e("Selecione um núcleo...", "quilombo-lab"); ?></option>
+                                            <?php $this->render_nucleos_with_address_options(); ?>
+                                        </select>
+                                    </div>
+                                    
+                                    <div id="address-input" class="form-field" style="display: none;">
+                                        <label for="territory_address"><?php _e("Endereço", "quilombo-lab"); ?></label>
+                                        <input type="text" id="territory_address" name="territory_address" class="regular-text" />
+                                        <button type="button" id="search-address" class="button"><?php _e("Buscar", "quilombo-lab"); ?></button>
+                                    </div>
+                                    
+                                    <div id="map-selection" style="display: none;">
+                                        <div id="territory-creation-map" class="ql-territory-map" style="height: 300px;"></div>
+                                    </div>
+                                    
+                                    <input type="hidden" id="territory_lat" name="territory_lat" />
+                                    <input type="hidden" id="territory_lng" name="territory_lng" />
+                                    
+                                    <div class="ql-modal-footer">
+                                        <button type="submit" class="button button-primary"><?php _e("Criar Território", "quilombo-lab"); ?></button>
+                                        <button type="button" class="button ql-modal-close"><?php _e("Cancelar", "quilombo-lab"); ?></button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <?php $this->display_territories_list(); ?>
+            </div>
+            
+            <!-- Aba do Mapa Geral -->
+            <div id="map-view-tab" class="ql-tab-content" style="display: none;">
+                <h2><?php _e("Mapa de Territórios e Pessoas", "quilombo-lab"); ?></h2>
+                <p class="description">
+                    <?php _e("Visualize todos os territórios e pessoas cadastradas no sistema com suas localizações geográficas.", "quilombo-lab"); ?>
+                </p>
+
+                <!-- Controles de Visibilidade -->
+                <div class="ql-map-controls" style="display: flex; gap: 20px; margin: 15px 0; padding: 15px; background: #fff; border: 1px solid #ddd; border-radius: 5px; flex-wrap: wrap; align-items: center;">
+                    <strong style="margin-right: 10px;"><?php _e("Exibir:", "quilombo-lab"); ?></strong>
+
+                    <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                        <input type="checkbox" id="toggle-territories" checked />
+                        <div style="background: #3498db; width: 16px; height: 16px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.3);"></div>
+                        <span><?php _e("Territórios", "quilombo-lab"); ?></span>
+                        <span id="territories-count" style="color: #666; font-size: 12px;">(0)</span>
+                    </label>
+
+                    <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                        <input type="checkbox" id="toggle-people" checked />
+                        <div style="background: #e74c3c; width: 12px; height: 12px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.3);"></div>
+                        <span><?php _e("Pessoas", "quilombo-lab"); ?></span>
+                        <span id="people-count" style="color: #666; font-size: 12px;">(0)</span>
+                    </label>
+
+                    <div style="border-left: 1px solid #ddd; padding-left: 15px; margin-left: 10px;">
+                        <label style="display: flex; align-items: center; gap: 5px;">
+                            <span><?php _e("Filtrar por território:", "quilombo-lab"); ?></span>
+                            <select id="filter-by-territory" style="min-width: 200px;">
+                                <option value=""><?php _e("Todos os territórios", "quilombo-lab"); ?></option>
+                            </select>
+                        </label>
+                    </div>
+
+                    <div style="margin-left: auto;">
+                        <button type="button" id="refresh-map" class="button">
+                            <?php _e("Atualizar Mapa", "quilombo-lab"); ?>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Legenda do mapa -->
+                <div class="ql-map-legend" style="display: flex; gap: 20px; margin: 10px 0; padding: 10px; background: #f5f5f5; border-radius: 5px; flex-wrap: wrap;">
+                    <div class="legend-item" style="display: flex; align-items: center; gap: 8px;">
+                        <div style="background: #3498db; width: 20px; height: 20px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.3);"></div>
+                        <span><?php _e("Territórios", "quilombo-lab"); ?></span>
+                    </div>
+                    <div class="legend-item" style="display: flex; align-items: center; gap: 8px;">
+                        <div style="background: #e74c3c; width: 12px; height: 12px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.3);"></div>
+                        <span><?php _e("Pessoas", "quilombo-lab"); ?></span>
+                    </div>
+                    <div class="legend-item" style="display: flex; align-items: center; gap: 8px;">
+                        <div style="background: #27ae60; width: 14px; height: 14px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.3);"></div>
+                        <span><?php _e("Você (sua localização)", "quilombo-lab"); ?></span>
+                    </div>
+                    <div class="legend-stats" style="margin-left: auto; color: #666;">
+                        <span id="map-stats-count"></span>
+                    </div>
+                </div>
+
+                <div id="general-territories-map" class="ql-territory-map" style="height: 500px;"></div>
+            </div>
+            
+            <!-- Aba de Localização do Usuário -->
+            <div id="user-location-tab" class="ql-tab-content" style="display: none;">
+                <h2><?php _e("Definir Minha Localização", "quilombo-lab"); ?></h2>
+                <?php echo do_shortcode("[ql_user_location_selector]"); ?>
+            </div>
+
+            <?php if (current_user_can('manage_options')) : ?>
+            <!-- Aba de Ferramentas Administrativas -->
+            <div id="admin-tools-tab" class="ql-tab-content" style="display: none;">
+                <h2><?php _e("Ferramentas Administrativas", "quilombo-lab"); ?></h2>
+                <p class="description">
+                    <?php _e("Ferramentas para gerenciamento em massa de territórios e usuários.", "quilombo-lab"); ?>
+                </p>
+
+                <div class="ql-admin-tool-section">
+                    <h3><?php _e("Atribuir Usuários ao Território Mundo e Comunidade Mundial", "quilombo-lab"); ?></h3>
+                    <p class="description">
+                        <?php _e("Esta ferramenta atribui automaticamente todos os usuários existentes ao Território Mundo e à Comunidade Mundial. Usuários que já possuem um território específico não terão seu território alterado, mas serão adicionados como membros do Território Mundo.", "quilombo-lab"); ?>
+                    </p>
+
+                    <?php
+                    // Mostrar estatísticas atuais
+                    $territories_instance = QL_Territories::get_instance();
+                    $world_territory_id = $territories_instance->get_world_territory_id();
+                    $world_community_id = $territories_instance->get_world_community_id();
+
+                    global $wpdb;
+                    $total_users = count(get_users(['fields' => 'ID']));
+
+                    $users_with_world_territory = 0;
+                    $community_members = 0;
+
+                    if ($world_territory_id) {
+                        $users_with_world_territory = count(get_users([
+                            'meta_key' => 'user_territory_id',
+                            'meta_value' => $world_territory_id
+                        ]));
+                    }
+
+                    if ($world_community_id) {
+                        $community_members = (int) $wpdb->get_var($wpdb->prepare(
+                            "SELECT COUNT(*) FROM {$wpdb->prefix}ql_instance_members WHERE instance_id = %d AND status = 'active'",
+                            $world_community_id
+                        ));
+                    }
+                    ?>
+
+                    <div class="ql-stats-box" style="background: #f5f5f5; padding: 15px; margin: 15px 0; border-radius: 5px;">
+                        <h4 style="margin-top: 0;"><?php _e("Estatísticas Atuais", "quilombo-lab"); ?></h4>
+                        <ul style="margin-bottom: 0;">
+                            <li><strong><?php _e("Total de usuários:", "quilombo-lab"); ?></strong> <?php echo $total_users; ?></li>
+                            <li><strong><?php _e("Território Mundo:", "quilombo-lab"); ?></strong>
+                                <?php if ($world_territory_id) : ?>
+                                    <?php printf(__("ID %d - %d usuários com este território principal", "quilombo-lab"), $world_territory_id, $users_with_world_territory); ?>
+                                <?php else : ?>
+                                    <span style="color: #d63638;"><?php _e("Não encontrado!", "quilombo-lab"); ?></span>
+                                <?php endif; ?>
+                            </li>
+                            <li><strong><?php _e("Comunidade Mundial:", "quilombo-lab"); ?></strong>
+                                <?php if ($world_community_id) : ?>
+                                    <?php printf(__("ID %d - %d membros ativos", "quilombo-lab"), $world_community_id, $community_members); ?>
+                                <?php else : ?>
+                                    <span style="color: #d63638;"><?php _e("Não encontrada!", "quilombo-lab"); ?></span>
+                                <?php endif; ?>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="ql-admin-actions" style="margin-top: 20px;">
+                        <button type="button" id="btn-assign-world-defaults" class="button button-primary button-large">
+                            <?php _e("Atribuir Todos os Usuários aos Padrões Mundiais", "quilombo-lab"); ?>
+                        </button>
+                        <span class="spinner" style="float: none; visibility: hidden;"></span>
+                    </div>
+
+                    <div id="assign-world-defaults-result" style="display: none; margin-top: 15px; padding: 15px; border-radius: 5px;"></div>
+                </div>
+
+                <hr style="margin: 30px 0;">
+
+                <div class="ql-admin-tool-section">
+                    <h3><?php _e("Endereço do Coletivo (Núcleo do Território Mundo)", "quilombo-lab"); ?></h3>
+                    <p class="description">
+                        <?php _e("Configure o endereço principal do coletivo. Este endereço será usado como localização do núcleo do Território Mundo. Todos os usuários cadastrados são automaticamente membros da Comunidade Mundial.", "quilombo-lab"); ?>
+                    </p>
+
+                    <?php
+                    // Carregar endereço atual do coletivo
+                    $collective_address = get_option('ql_collective_address', '');
+                    $collective_lat = get_option('ql_collective_lat', '');
+                    $collective_lng = get_option('ql_collective_lng', '');
+                    ?>
+
+                    <div class="ql-collective-address-form" style="background: #fff; padding: 20px; border: 1px solid #ddd; border-radius: 5px; margin: 15px 0;">
+                        <div class="form-field" style="margin-bottom: 15px;">
+                            <label for="collective_address" style="display: block; font-weight: bold; margin-bottom: 5px;">
+                                <?php _e("Endereço do Coletivo", "quilombo-lab"); ?>
+                            </label>
+                            <div style="display: flex; gap: 10px; align-items: flex-start;">
+                                <input type="text" id="collective_address" name="collective_address"
+                                       value="<?php echo esc_attr($collective_address); ?>"
+                                       class="regular-text" style="flex: 1; min-width: 300px;"
+                                       placeholder="<?php _e('Ex: Rua da Sede, 123, Bairro, Cidade - Estado', 'quilombo-lab'); ?>" />
+                                <button type="button" id="btn-search-collective-address" class="button">
+                                    <?php _e("Buscar Coordenadas", "quilombo-lab"); ?>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="form-field" style="display: flex; gap: 20px; margin-bottom: 15px;">
+                            <div>
+                                <label for="collective_lat" style="display: block; font-weight: bold; margin-bottom: 5px;">
+                                    <?php _e("Latitude", "quilombo-lab"); ?>
+                                </label>
+                                <input type="text" id="collective_lat" name="collective_lat"
+                                       value="<?php echo esc_attr($collective_lat); ?>"
+                                       class="regular-text" style="width: 150px;" readonly />
+                            </div>
+                            <div>
+                                <label for="collective_lng" style="display: block; font-weight: bold; margin-bottom: 5px;">
+                                    <?php _e("Longitude", "quilombo-lab"); ?>
+                                </label>
+                                <input type="text" id="collective_lng" name="collective_lng"
+                                       value="<?php echo esc_attr($collective_lng); ?>"
+                                       class="regular-text" style="width: 150px;" readonly />
+                            </div>
+                        </div>
+
+                        <div id="collective-address-map" style="height: 300px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 4px; display: <?php echo ($collective_lat && $collective_lng) ? 'block' : 'none'; ?>;"></div>
+
+                        <div class="form-actions">
+                            <button type="button" id="btn-save-collective-address" class="button button-primary">
+                                <?php _e("Salvar Endereço do Coletivo", "quilombo-lab"); ?>
+                            </button>
+                            <span class="spinner" id="collective-address-spinner" style="float: none; visibility: hidden;"></span>
+                        </div>
+
+                        <div id="collective-address-result" style="display: none; margin-top: 15px; padding: 15px; border-radius: 5px;"></div>
+                    </div>
+
+                    <div class="ql-info-box" style="background: #e7f3ff; padding: 15px; border-left: 4px solid #0073aa; margin: 15px 0;">
+                        <strong><?php _e("Como funciona:", "quilombo-lab"); ?></strong>
+                        <ul style="margin: 10px 0 0 20px;">
+                            <li><?php _e("O endereço do coletivo define a localização física do núcleo do Território Mundo.", "quilombo-lab"); ?></li>
+                            <li><?php _e("Todos os usuários que se cadastram no site são automaticamente adicionados à Comunidade Mundial.", "quilombo-lab"); ?></li>
+                            <li><?php _e("A trilha do site Moodle representa a trilha do projeto do coletivo no Quilombo Lab.", "quilombo-lab"); ?></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <hr style="margin: 30px 0;">
+
+                <div class="ql-admin-tool-section">
+                    <h3><?php _e("Verificar/Criar Território Mundo e Comunidade Mundial", "quilombo-lab"); ?></h3>
+                    <p class="description">
+                        <?php _e("Verifica se o Território Mundo e a Comunidade Mundial existem. Se não existirem, cria automaticamente.", "quilombo-lab"); ?>
+                    </p>
+                    <button type="button" id="btn-ensure-world-defaults" class="button">
+                        <?php _e("Verificar e Criar se Necessário", "quilombo-lab"); ?>
+                    </button>
+                    <span class="spinner" style="float: none; visibility: hidden;"></span>
+                    <div id="ensure-world-defaults-result" style="display: none; margin-top: 15px; padding: 15px; border-radius: 5px;"></div>
+                </div>
+            </div>
+            <?php endif; ?>
+        </div>
+
+        <script>
+        jQuery(document).ready(function($) {
+            // Navegação por abas
+            $(".nav-tab").on("click", function(e) {
+                e.preventDefault();
+                $(".nav-tab").removeClass("nav-tab-active");
+                $(".ql-tab-content").hide();
+                $(this).addClass("nav-tab-active");
+                var targetTab = $(this).data("tab") + "-tab";
+                $("#" + targetTab).show();
+                
+                // Inicializar mapa quando aba do mapa for aberta
+                if (targetTab === "map-view-tab") {
+                    setTimeout(function() {
+                        initGeneralMap();
+                    }, 100);
+                }
+
+                // Corrigir exibição do mapa quando aba "Minha Localização" for aberta
+                if (targetTab === "user-location-tab") {
+                    setTimeout(function() {
+                        // O mapa do usuário é gerenciado pelo shortcode em class-ql-territories.php
+                        // Emitir evento para que o mapa saiba que a aba foi aberta
+                        $(document).trigger('ql-user-location-tab-visible');
+                    }, 100);
+                }
+
+                // Corrigir exibição do mapa quando aba "Ferramentas Admin" for aberta
+                if (targetTab === "admin-tools-tab") {
+                    setTimeout(function() {
+                        // Emitir evento para o mapa do endereço do coletivo
+                        $(document).trigger('ql-admin-tools-tab-visible');
+                    }, 150);
+                }
+            });
+
+            // Variáveis globais para controle do mapa
+            var generalMapData = {
+                map: null,
+                territoriesLayer: null,
+                peopleLayer: null,
+                territories: [],
+                users: [],
+                currentFilter: ''
+            };
+
+            // Função para inicializar o mapa geral
+            function initGeneralMap() {
+                if (window.generalMapInitialized && window.generalMap) {
+                    // Mapa já inicializado, apenas recarregar dados se necessário
+                    return;
+                }
+
+                if (!window.L) {
+                    console.error('Leaflet não está carregado');
+                    return;
+                }
+
+                var mapElement = document.getElementById("general-territories-map");
+                if (!mapElement) return;
+
+                // Criar mapa
+                var map = L.map('general-territories-map', {
+                    center: [-15.7942287, -47.8821945],
+                    zoom: 4,
+                    maxZoom: 18
+                });
+
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors',
+                    maxZoom: 18
+                }).addTo(map);
+
+                window.generalMapInitialized = true;
+                window.generalMap = map;
+                generalMapData.map = map;
+
+                // Criar camadas separadas para territórios e pessoas
+                generalMapData.territoriesLayer = L.layerGroup().addTo(map);
+                generalMapData.peopleLayer = L.layerGroup().addTo(map);
+
+                // Carregar dados do mapa
+                loadMapData();
+
+                // Configurar eventos dos controles
+                setupMapControls();
+            }
+
+            // Função para carregar dados do mapa
+            function loadMapData() {
+                var map = generalMapData.map;
+                if (!map) return;
+
+                // Limpar camadas
+                generalMapData.territoriesLayer.clearLayers();
+                generalMapData.peopleLayer.clearLayers();
+                generalMapData.territories = [];
+                generalMapData.users = [];
+
+                // Ícones personalizados
+                var territoryIcon = L.divIcon({
+                    className: 'ql-territory-marker',
+                    html: '<div style="background: #3498db; width: 24px; height: 24px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"></div>',
+                    iconSize: [24, 24],
+                    iconAnchor: [12, 12]
+                });
+
+                var userIcon = L.divIcon({
+                    className: 'ql-user-marker',
+                    html: '<div style="background: #e74c3c; width: 12px; height: 12px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.3);"></div>',
+                    iconSize: [12, 12],
+                    iconAnchor: [6, 6]
+                });
+
+                var currentUserIcon = L.divIcon({
+                    className: 'ql-current-user-marker',
+                    html: '<div style="background: #27ae60; width: 16px; height: 16px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.4);"></div>',
+                    iconSize: [16, 16],
+                    iconAnchor: [8, 8]
+                });
+
+                var allMarkers = [];
+
+                // Carregar territórios
+                $.post(ajaxurl, {
+                    action: 'ql_get_all_territories',
+                    nonce: '<?php echo wp_create_nonce("ql_territories_nonce"); ?>'
+                }, function(response) {
+                    console.log('Territórios carregados:', response);
+
+                    // Limpar e popular dropdown de filtro
+                    var $filterSelect = $('#filter-by-territory');
+                    $filterSelect.find('option:not(:first)').remove();
+
+                    if (response.success && response.data && response.data.length > 0) {
+                        response.data.forEach(function(territory) {
+                            // Adicionar ao dropdown
+                            $filterSelect.append('<option value="' + territory.id + '">' + territory.name + '</option>');
+
+                            if (territory.lat && territory.lng) {
+                                var marker = L.marker([territory.lat, territory.lng], {
+                                    icon: territoryIcon,
+                                    territoryId: territory.id,
+                                    territoryName: territory.name
+                                }).bindPopup('<div class="ql-map-popup"><h4>🗺️ ' + territory.name + '</h4><p>' + (territory.address || '') + '</p><a href="' + territory.edit_url + '" class="territory-link"><?php echo esc_js(__("Editar", "quilombo-lab")); ?></a></div>');
+
+                                generalMapData.territoriesLayer.addLayer(marker);
+                                generalMapData.territories.push({
+                                    id: territory.id,
+                                    name: territory.name,
+                                    marker: marker
+                                });
+                                allMarkers.push(marker);
+                            }
+                        });
+
+                        $('#territories-count').text('(' + response.data.length + ')');
+                    } else {
+                        $('#territories-count').text('(0)');
+                    }
+
+                    // Carregar usuários
+                    $.post(ajaxurl, {
+                        action: 'ql_get_all_users_locations',
+                        nonce: '<?php echo wp_create_nonce("ql_territories_nonce"); ?>'
+                    }, function(usersResponse) {
+                        console.log('Usuários carregados:', usersResponse);
+
+                        if (usersResponse.success && usersResponse.data && usersResponse.data.users) {
+                            usersResponse.data.users.forEach(function(user) {
+                                if (user.lat && user.lng) {
+                                    var icon = user.is_current_user ? currentUserIcon : userIcon;
+                                    var popupContent = '<div class="ql-map-popup">';
+                                    popupContent += '<h4>👤 ' + user.name + '</h4>';
+                                    if (user.address) {
+                                        popupContent += '<p>📍 ' + user.address + '</p>';
+                                    }
+                                    if (user.territory) {
+                                        popupContent += '<p>🗺️ ' + user.territory + '</p>';
+                                    }
+                                    if (user.profile_url) {
+                                        popupContent += '<a href="' + user.profile_url + '" target="_blank"><?php echo esc_js(__("Ver perfil", "quilombo-lab")); ?></a>';
+                                    }
+                                    popupContent += '</div>';
+
+                                    var marker = L.marker([user.lat, user.lng], {
+                                        icon: icon,
+                                        userId: user.id,
+                                        userName: user.name,
+                                        userTerritory: user.territory || '',
+                                        userTerritoryId: user.territory_id || null,
+                                        isCurrentUser: user.is_current_user
+                                    }).bindPopup(popupContent);
+
+                                    generalMapData.peopleLayer.addLayer(marker);
+                                    generalMapData.users.push({
+                                        id: user.id,
+                                        name: user.name,
+                                        territory: user.territory || '',
+                                        territoryId: user.territory_id || null,
+                                        marker: marker,
+                                        isCurrentUser: user.is_current_user
+                                    });
+                                    allMarkers.push(marker);
+                                }
+                            });
+
+                            var usersCount = usersResponse.data.total || 0;
+                            $('#people-count').text('(' + usersCount + ')');
+
+                            // Atualizar contagem na legenda
+                            var territoriesCount = response.success && response.data ? response.data.length : 0;
+                            $('#map-stats-count').html(territoriesCount + ' <?php echo esc_js(__("territórios", "quilombo-lab")); ?> | ' + usersCount + ' <?php echo esc_js(__("pessoas", "quilombo-lab")); ?>');
+                        } else {
+                            $('#people-count').text('(0)');
+                        }
+
+                        // Ajustar vista para mostrar todos os marcadores
+                        if (allMarkers.length > 0) {
+                            var group = new L.featureGroup(allMarkers);
+                            map.fitBounds(group.getBounds().pad(0.1));
+                        }
+
+                        // Aplicar filtro se já estiver selecionado
+                        applyTerritoryFilter();
+                    });
+                });
+            }
+
+            // Função para configurar eventos dos controles
+            function setupMapControls() {
+                // Toggle de territórios
+                $('#toggle-territories').off('change').on('change', function() {
+                    var map = generalMapData.map;
+                    if (!map) return;
+
+                    if ($(this).is(':checked')) {
+                        map.addLayer(generalMapData.territoriesLayer);
+                    } else {
+                        map.removeLayer(generalMapData.territoriesLayer);
+                    }
+                });
+
+                // Toggle de pessoas
+                $('#toggle-people').off('change').on('change', function() {
+                    var map = generalMapData.map;
+                    if (!map) return;
+
+                    if ($(this).is(':checked')) {
+                        map.addLayer(generalMapData.peopleLayer);
+                    } else {
+                        map.removeLayer(generalMapData.peopleLayer);
+                    }
+                });
+
+                // Filtro por território
+                $('#filter-by-territory').off('change').on('change', function() {
+                    generalMapData.currentFilter = $(this).val();
+                    applyTerritoryFilter();
+                });
+
+                // Botão atualizar mapa
+                $('#refresh-map').off('click').on('click', function() {
+                    var $btn = $(this);
+                    $btn.prop('disabled', true).text('<?php echo esc_js(__("Carregando...", "quilombo-lab")); ?>');
+
+                    loadMapData();
+
+                    setTimeout(function() {
+                        $btn.prop('disabled', false).text('<?php echo esc_js(__("Atualizar Mapa", "quilombo-lab")); ?>');
+                    }, 1000);
+                });
+            }
+
+            // Função para aplicar filtro por território
+            function applyTerritoryFilter() {
+                var filterValue = generalMapData.currentFilter;
+                var map = generalMapData.map;
+                if (!map) return;
+
+                // Se toggle de pessoas estiver desmarcado, não fazer nada
+                if (!$('#toggle-people').is(':checked')) return;
+
+                var filteredCount = 0;
+
+                // Se não há filtro, mostrar todos
+                if (!filterValue) {
+                    generalMapData.users.forEach(function(user) {
+                        if (!generalMapData.peopleLayer.hasLayer(user.marker)) {
+                            generalMapData.peopleLayer.addLayer(user.marker);
+                        }
+                        filteredCount++;
+                    });
+                    $('#people-count').text('(' + filteredCount + ')');
+                    return;
+                }
+
+                // Filtrar: buscar território selecionado
+                var selectedTerritory = generalMapData.territories.find(function(t) {
+                    return t.id == filterValue;
+                });
+
+                // Mostrar/ocultar marcadores de usuários baseado no ID do território
+                generalMapData.users.forEach(function(user) {
+                    // Usuário atual sempre visível
+                    if (user.isCurrentUser) {
+                        if (!generalMapData.peopleLayer.hasLayer(user.marker)) {
+                            generalMapData.peopleLayer.addLayer(user.marker);
+                        }
+                        filteredCount++;
+                        return;
+                    }
+
+                    // Verificar se o usuário pertence ao território filtrado (usando ID)
+                    var belongsToTerritory = user.territoryId && user.territoryId == filterValue;
+
+                    if (belongsToTerritory) {
+                        if (!generalMapData.peopleLayer.hasLayer(user.marker)) {
+                            generalMapData.peopleLayer.addLayer(user.marker);
+                        }
+                        filteredCount++;
+                    } else {
+                        generalMapData.peopleLayer.removeLayer(user.marker);
+                    }
+                });
+
+                // Atualizar contagem filtrada
+                $('#people-count').text('(' + filteredCount + ')');
+
+                // Focar no território selecionado se existe
+                if (selectedTerritory && selectedTerritory.marker) {
+                    var latlng = selectedTerritory.marker.getLatLng();
+                    map.setView(latlng, 10);
+                }
+            }
+            
+            // Modal de criação de território
+            $('#create-territory-btn').on('click', function() {
+                $('#create-territory-modal').show();
+            });
+            
+            $('.ql-modal-close').on('click', function() {
+                $('#create-territory-modal').hide();
+            });
+            
+            $(document).on('click', '.ql-modal-overlay', function(e) {
+                if (e.target === this) {
+                    $('#create-territory-modal').hide();
+                }
+            });
+            
+            // Alternar campos conforme método de localização
+            $('#location_method').on('change', function() {
+                var method = $(this).val();
+                $('#nucleo-selection, #address-input, #map-selection').hide();
+                
+                if (method === 'nucleo') {
+                    $('#nucleo-selection').show();
+                } else if (method === 'address') {
+                    $('#address-input').show();
+                } else if (method === 'map') {
+                    $('#map-selection').show();
+                    // Inicializar mapa se necessário
+                    setTimeout(function() {
+                        if (!window.territoryCreationMap && window.L) {
+                            window.territoryCreationMap = L.map('territory-creation-map', {
+                                center: [-15.7942287, -47.8821945],
+                                zoom: 4
+                            });
+                            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(window.territoryCreationMap);
+                            
+                            window.territoryCreationMap.on('click', function(e) {
+                                var lat = e.latlng.lat;
+                                var lng = e.latlng.lng;
+                                $('#territory_lat').val(lat);
+                                $('#territory_lng').val(lng);
+                                
+                                if (window.territoryCreationMarker) {
+                                    window.territoryCreationMap.removeLayer(window.territoryCreationMarker);
+                                }
+                                window.territoryCreationMarker = L.marker([lat, lng]).addTo(window.territoryCreationMap);
+                            });
+                        }
+                    }, 100);
+                }
+            });
+            
+            // Carregar dados do núcleo selecionado
+            $('#territory_nucleo').on('change', function() {
+                var nucleoId = $(this).val();
+                if (nucleoId) {
+                    $.post(ajaxurl, {
+                        action: 'ql_get_nucleo_data',
+                        nucleo_id: nucleoId,
+                        nonce: '<?php echo wp_create_nonce("ql_territories_nonce"); ?>'
+                    }, function(response) {
+                        if (response.success) {
+                            var data = response.data;
+                            $('#territory_lat').val(data.lat);
+                            $('#territory_lng').val(data.lng);
+                            if (!$('#territory_name').val()) {
+                                $('#territory_name').val('Território ' + data.nome);
+                            }
+                        }
+                    });
+                }
+            });
+            
+            // Buscar endereço
+            $('#search-address').on('click', function() {
+                var address = $('#territory_address').val();
+                if (!address) {
+                    alert('Digite um endereço');
+                    return;
+                }
+                
+                var $btn = $(this);
+                $btn.prop('disabled', true).text('Buscando...');
+                
+                $.post(ajaxurl, {
+                    action: 'ql_search_address',
+                    address: address,
+                    nonce: '<?php echo wp_create_nonce("ql_territories_nonce"); ?>'
+                }, function(response) {
+                    if (response.success && response.data.length > 0) {
+                        var result = response.data[0];
+                        $('#territory_lat').val(result.lat);
+                        $('#territory_lng').val(result.lon);
+                        alert('Endereço encontrado!');
+                    } else {
+                        alert('Endereço não encontrado');
+                    }
+                }).fail(function() {
+                    alert('Erro ao buscar endereço');
+                }).always(function() {
+                    $btn.prop('disabled', false).text('Buscar');
+                });
+            });
+            
+            // Submeter formulário de criação
+            $('#territory-creation-form').on('submit', function(e) {
+                e.preventDefault();
+
+                var formData = new FormData(this);
+                formData.append('action', 'ql_create_territory');
+                formData.append('nonce', '<?php echo wp_create_nonce("ql_territories_nonce"); ?>');
+
+                $.post(ajaxurl, Object.fromEntries(formData), function(response) {
+                    if (response.success) {
+                        alert('Território criado com sucesso!');
+                        $('#create-territory-modal').hide();
+                        location.reload();
+                    } else {
+                        alert(response.data || 'Erro ao criar território');
+                    }
+                }).fail(function() {
+                    alert('Erro ao criar território');
+                });
+            });
+
+            // Botão: Atribuir todos os usuários aos padrões mundiais
+            $('#btn-assign-world-defaults').on('click', function() {
+                if (!confirm('<?php echo esc_js(__("Isso irá atribuir TODOS os usuários ao Território Mundo e à Comunidade Mundial. Continuar?", "quilombo-lab")); ?>')) {
+                    return;
+                }
+
+                var $btn = $(this);
+                var $spinner = $btn.next('.spinner');
+                var $result = $('#assign-world-defaults-result');
+
+                $btn.prop('disabled', true);
+                $spinner.css('visibility', 'visible');
+                $result.hide();
+
+                $.post(ajaxurl, {
+                    action: 'ql_assign_all_users_world_defaults',
+                    nonce: '<?php echo wp_create_nonce("ql_admin_territories_nonce"); ?>'
+                }, function(response) {
+                    if (response.success) {
+                        var data = response.data;
+                        var html = '<strong><?php echo esc_js(__("Operação concluída com sucesso!", "quilombo-lab")); ?></strong><br><br>';
+                        html += '<ul>';
+                        html += '<li><?php echo esc_js(__("Total de usuários processados:", "quilombo-lab")); ?> ' + data.total_users + '</li>';
+                        html += '<li><?php echo esc_js(__("Territórios atribuídos:", "quilombo-lab")); ?> ' + data.territory_assigned + '</li>';
+                        html += '<li><?php echo esc_js(__("Membros de território adicionados:", "quilombo-lab")); ?> ' + data.territory_member_added + '</li>';
+                        html += '<li><?php echo esc_js(__("Membros da comunidade adicionados:", "quilombo-lab")); ?> ' + data.community_assigned + '</li>';
+                        html += '<li><?php echo esc_js(__("Já eram membros (pulados):", "quilombo-lab")); ?> ' + data.skipped + '</li>';
+                        html += '</ul>';
+
+                        if (data.errors && data.errors.length > 0) {
+                            html += '<br><strong style="color: #d63638;"><?php echo esc_js(__("Avisos:", "quilombo-lab")); ?></strong><ul>';
+                            data.errors.forEach(function(err) {
+                                html += '<li>' + err + '</li>';
+                            });
+                            html += '</ul>';
+                        }
+
+                        $result.html(html).css('background', '#d4edda').show();
+                    } else {
+                        $result.html('<strong style="color: #d63638;"><?php echo esc_js(__("Erro:", "quilombo-lab")); ?></strong> ' + (response.data || '<?php echo esc_js(__("Erro desconhecido", "quilombo-lab")); ?>')).css('background', '#f8d7da').show();
+                    }
+                }).fail(function() {
+                    $result.html('<strong style="color: #d63638;"><?php echo esc_js(__("Erro de conexão", "quilombo-lab")); ?></strong>').css('background', '#f8d7da').show();
+                }).always(function() {
+                    $btn.prop('disabled', false);
+                    $spinner.css('visibility', 'hidden');
+                });
+            });
+
+            // Botão: Verificar/Criar padrões mundiais
+            $('#btn-ensure-world-defaults').on('click', function() {
+                var $btn = $(this);
+                var $spinner = $btn.next('.spinner');
+                var $result = $('#ensure-world-defaults-result');
+
+                $btn.prop('disabled', true);
+                $spinner.css('visibility', 'visible');
+                $result.hide();
+
+                $.post(ajaxurl, {
+                    action: 'ql_ensure_world_defaults',
+                    nonce: '<?php echo wp_create_nonce("ql_admin_territories_nonce"); ?>'
+                }, function(response) {
+                    if (response.success) {
+                        var data = response.data;
+                        var html = '<strong><?php echo esc_js(__("Verificação concluída!", "quilombo-lab")); ?></strong><br><br>';
+                        html += '<ul>';
+                        html += '<li><?php echo esc_js(__("Território Mundo ID:", "quilombo-lab")); ?> ' + (data.territory_id || '<?php echo esc_js(__("Não encontrado", "quilombo-lab")); ?>') + '</li>';
+                        html += '<li><?php echo esc_js(__("Comunidade Mundial ID:", "quilombo-lab")); ?> ' + (data.community_id || '<?php echo esc_js(__("Não encontrada", "quilombo-lab")); ?>') + '</li>';
+                        html += '</ul>';
+                        $result.html(html).css('background', '#d4edda').show();
+                    } else {
+                        $result.html('<strong style="color: #d63638;"><?php echo esc_js(__("Erro:", "quilombo-lab")); ?></strong> ' + (response.data || '<?php echo esc_js(__("Erro desconhecido", "quilombo-lab")); ?>')).css('background', '#f8d7da').show();
+                    }
+                }).fail(function() {
+                    $result.html('<strong style="color: #d63638;"><?php echo esc_js(__("Erro de conexão", "quilombo-lab")); ?></strong>').css('background', '#f8d7da').show();
+                }).always(function() {
+                    $btn.prop('disabled', false);
+                    $spinner.css('visibility', 'hidden');
+                });
+            });
+
+            // ========== ENDEREÇO DO COLETIVO ==========
+            var collectiveMap = null;
+            var collectiveMarker = null;
+
+            // Inicializar mapa se já houver coordenadas
+            <?php if ($collective_lat && $collective_lng): ?>
+            initCollectiveMap(<?php echo floatval($collective_lat); ?>, <?php echo floatval($collective_lng); ?>);
+            <?php endif; ?>
+
+            function initCollectiveMap(lat, lng) {
+                var mapContainer = document.getElementById('collective-address-map');
+                if (!mapContainer) return;
+
+                $('#collective-address-map').show();
+
+                if (collectiveMap) {
+                    collectiveMap.remove();
+                }
+
+                collectiveMap = L.map('collective-address-map').setView([lat, lng], 15);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors'
+                }).addTo(collectiveMap);
+
+                collectiveMarker = L.marker([lat, lng], {
+                    draggable: true
+                }).addTo(collectiveMap);
+
+                collectiveMarker.bindPopup('<strong><?php echo esc_js(__("Sede do Coletivo", "quilombo-lab")); ?></strong>').openPopup();
+
+                // Permitir arrastar o marcador para ajustar posição
+                collectiveMarker.on('dragend', function(e) {
+                    var pos = e.target.getLatLng();
+                    $('#collective_lat').val(pos.lat.toFixed(8));
+                    $('#collective_lng').val(pos.lng.toFixed(8));
+                });
+
+                // Corrigir renderização
+                setTimeout(function() {
+                    collectiveMap.invalidateSize();
+                }, 200);
+            }
+
+            // Listener para quando a aba "Ferramentas Admin" ficar visível
+            $(document).on('ql-admin-tools-tab-visible', function() {
+                if (collectiveMap) {
+                    setTimeout(function() {
+                        collectiveMap.invalidateSize();
+                    }, 100);
+                }
+            });
+
+            // Buscar coordenadas do endereço
+            $('#btn-search-collective-address').on('click', function() {
+                var address = $('#collective_address').val().trim();
+                if (!address) {
+                    alert('<?php echo esc_js(__("Digite um endereço para buscar", "quilombo-lab")); ?>');
+                    return;
+                }
+
+                var $btn = $(this);
+                $btn.prop('disabled', true).text('<?php echo esc_js(__("Buscando...", "quilombo-lab")); ?>');
+
+                $.post(ajaxurl, {
+                    action: 'ql_search_address',
+                    address: address,
+                    nonce: '<?php echo wp_create_nonce("ql_territories_nonce"); ?>'
+                }, function(response) {
+                    if (response.success && response.data && response.data.length > 0) {
+                        var result = response.data[0];
+                        // Nominatim retorna 'lon' para longitude, não 'lng'
+                        var longitude = result.lon || result.lng;
+                        $('#collective_lat').val(result.lat);
+                        $('#collective_lng').val(longitude);
+                        $('#collective_address').val(result.display_name);
+                        initCollectiveMap(parseFloat(result.lat), parseFloat(longitude));
+                    } else {
+                        alert('<?php echo esc_js(__("Endereço não encontrado. Tente ser mais específico.", "quilombo-lab")); ?>');
+                    }
+                }).fail(function() {
+                    alert('<?php echo esc_js(__("Erro ao buscar endereço", "quilombo-lab")); ?>');
+                }).always(function() {
+                    $btn.prop('disabled', false).text('<?php echo esc_js(__("Buscar Coordenadas", "quilombo-lab")); ?>');
+                });
+            });
+
+            // Salvar endereço do coletivo
+            $('#btn-save-collective-address').on('click', function() {
+                var address = $('#collective_address').val().trim();
+                var lat = $('#collective_lat').val();
+                var lng = $('#collective_lng').val();
+
+                if (!address || !lat || !lng) {
+                    alert('<?php echo esc_js(__("Preencha o endereço e busque as coordenadas antes de salvar.", "quilombo-lab")); ?>');
+                    return;
+                }
+
+                var $btn = $(this);
+                var $spinner = $('#collective-address-spinner');
+                var $result = $('#collective-address-result');
+
+                $btn.prop('disabled', true);
+                $spinner.css('visibility', 'visible');
+                $result.hide();
+
+                $.post(ajaxurl, {
+                    action: 'ql_save_collective_address',
+                    address: address,
+                    lat: lat,
+                    lng: lng,
+                    nonce: '<?php echo wp_create_nonce("ql_admin_territories_nonce"); ?>'
+                }, function(response) {
+                    if (response.success) {
+                        $result.html('<strong style="color: #155724;"><?php echo esc_js(__("Endereço do coletivo salvo com sucesso!", "quilombo-lab")); ?></strong> ' + (response.data.message || '')).css('background', '#d4edda').show();
+                    } else {
+                        $result.html('<strong style="color: #d63638;"><?php echo esc_js(__("Erro:", "quilombo-lab")); ?></strong> ' + (response.data || '<?php echo esc_js(__("Erro desconhecido", "quilombo-lab")); ?>')).css('background', '#f8d7da').show();
+                    }
+                }).fail(function() {
+                    $result.html('<strong style="color: #d63638;"><?php echo esc_js(__("Erro de conexão", "quilombo-lab")); ?></strong>').css('background', '#f8d7da').show();
+                }).always(function() {
+                    $btn.prop('disabled', false);
+                    $spinner.css('visibility', 'hidden');
+                });
+            });
+        });
+        </script>
+        <?php
+    }
+    
+    /**
+     * Exibir lista de territórios
+     */
+    private function display_territories_list() {
+        $territories = get_posts([
+            "post_type" => "ql_territory",
+            "posts_per_page" => -1,
+            "post_status" => "any"
+        ]);
+        
+        if (empty($territories)) {
+            ?>
+            <div class="ql-empty-state">
+                <h3><?php _e("Nenhum território criado ainda", "quilombo-lab"); ?></h3>
+                <p><?php _e("Crie o primeiro território para começar a organização territorial do coletivo.", "quilombo-lab"); ?></p>
+                <a href="<?php echo admin_url("post-new.php?post_type=ql_territory"); ?>" class="button button-primary">
+                    <?php _e("Criar Primeiro Território", "quilombo-lab"); ?>
+                </a>
+            </div>
+            <?php
+            return;
+        }
+        
+        echo "<div class=\"ql-territories-grid\">";
+        foreach ($territories as $territory) {
+            $territory_type = wp_get_post_terms($territory->ID, "territory_type");
+            $type_name = $territory_type ? $territory_type[0]->name : "";
+            $address = get_post_meta($territory->ID, "_territory_address", true);
+            $auto_assign = get_post_meta($territory->ID, "_territory_auto_assign", true);
+            $user_count = $this->count_territory_users($territory->ID);
+            
+            echo "<div class=\"ql-territory-card\">";
+            echo "<h3><a href=\"" . admin_url("post.php?post=" . $territory->ID . "&action=edit") . "\">" . esc_html($territory->post_title) . "</a></h3>";
+            
+            if ($type_name) {
+                echo "<div class=\"territory-type\">" . esc_html($type_name) . "</div>";
+            }
+            
+            if ($address) {
+                echo "<div class=\"territory-address\">📍 " . esc_html($address) . "</div>";
+            }
+            
+            echo "<div class=\"territory-members\">👥 " . sprintf(_n("%d pessoa", "%d pessoas", $user_count, "quilombo-lab"), $user_count) . "</div>";
+            
+            if ($auto_assign) {
+                echo "<div class=\"territory-auto-assign\">⚡ Auto-atribuição ativa</div>";
+            }
+            
+            echo "<div class=\"territory-actions\">";
+            echo "<a href=\"" . admin_url("post.php?post=" . $territory->ID . "&action=edit") . "\" class=\"button\">Editar</a>";
+            echo "<a href=\"" . get_permalink($territory->ID) . "\" class=\"button\" target=\"_blank\">Ver</a>";
+            echo "</div>";
+            echo "</div>";
+        }
+        echo "</div>";
+        
+        echo "<style>
+        .ql-territories-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .ql-territory-card {
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .ql-territory-card h3 { margin-top: 0; }
+        .territory-type {
+            background: #e74c3c;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            text-transform: uppercase;
+            display: inline-block;
+            margin-bottom: 10px;
+        }
+        .territory-address, .territory-members, .territory-auto-assign {
+            margin: 8px 0;
+            color: #666;
+        }
+        .territory-auto-assign {
+            color: #27ae60;
+            font-weight: bold;
+        }
+        .territory-actions {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+        .territory-actions .button {
+            margin-right: 10px;
+        }
+        </style>";
+    }
+    
+    /**
+     * Contar usuários em um território
+     */
+    private function count_territory_users($territory_id) {
+        $users = get_users([
+            "meta_query" => [
+                [
+                    "key" => "user_territory_id",
+                    "value" => $territory_id,
+                    "compare" => "="
+                ]
+            ]
+        ]);
+        
+        return count($users);
+    }
+    
+    /**
+     * Renderizar opções de tipos de território
+     */
+    private function render_territory_type_options() {
+        $territory_types = get_terms([
+            'taxonomy' => 'territory_type',
+            'hide_empty' => false
+        ]);
+        
+        foreach ($territory_types as $type) {
+            echo '<option value="' . esc_attr($type->slug) . '">' . esc_html($type->name) . '</option>';
+        }
+    }
+    
+    /**
+     * Renderizar opções de núcleos com endereço
+     */
+    private function render_nucleos_with_address_options() {
+        global $wpdb;
+        
+        $nucleos = $wpdb->get_results("
+            SELECT i.id, i.nome, im.endereco_fisico 
+            FROM {$wpdb->prefix}ql_instances i
+            LEFT JOIN {$wpdb->prefix}ql_instance_meta im ON i.id = im.instance_id
+            WHERE i.tipo = 'nucleo' 
+            AND i.status = 'ativo'
+            AND (im.endereco_fisico IS NOT NULL AND im.endereco_fisico != '')
+            ORDER BY i.nome ASC
+        ");
+        
+        foreach ($nucleos as $nucleo) {
+            echo '<option value="' . esc_attr($nucleo->id) . '">' . 
+                 esc_html($nucleo->nome) . ' - ' . esc_html($nucleo->endereco_fisico) . 
+                 '</option>';
+        }
+    }
+    
 }

@@ -165,7 +165,8 @@ class QL_Organizational_Roles {
      */
     private function __construct() {
         add_action('init', [$this, 'init']);
-        add_action('admin_menu', [$this, 'add_admin_menu']);
+        // Comentado: menu movido para QL_Admin sob menu Organização
+        // add_action('admin_menu', [$this, 'add_admin_menu']);
         
         // Hooks para atribuição de papéis
         add_action('ql_assign_organizational_role', [$this, 'assign_role_to_user'], 10, 4);
@@ -659,5 +660,165 @@ class QL_Organizational_Roles {
         
         // Só pode atribuir papéis de nível inferior
         return $max_assigner_level > $target_role_level;
+    }
+    
+    /**
+     * Verificar se integração com Moodle está ativa para papéis
+     */
+    public function is_moodle_integration_active() {
+        $moodle_config = get_option('ql_moodle_roles_config', []);
+        return !empty($moodle_config);
+    }
+    
+    /**
+     * Verificar se papel está disponível no Moodle
+     */
+    public function is_role_available_in_moodle($role_key) {
+        $moodle_config = get_option('ql_moodle_roles_config', []);
+        return isset($moodle_config[$role_key]) && $moodle_config[$role_key]['exists_in_moodle'];
+    }
+    
+    /**
+     * Obter status de integração de um papel
+     */
+    public function get_role_integration_status($role_key) {
+        if (!$this->is_moodle_integration_active()) {
+            return 'wordpress_only';
+        }
+        
+        if ($this->is_role_available_in_moodle($role_key)) {
+            return 'moodle_sync';
+        }
+        
+        return 'wordpress_fallback';
+    }
+    
+    /**
+     * Atribuir papel com consideração à integração Moodle
+     */
+    public function assign_role_with_integration($user_id, $role_key, $context_type = 'global', $context_id = null) {
+        $status = $this->get_role_integration_status($role_key);
+        
+        // Para papéis que devem ser gerenciados pelo Moodle, não permitir atribuição direta no QL
+        if ($status === 'moodle_sync' && $context_type === 'project') {
+            return new WP_Error('moodle_managed', 
+                "O papel '{$role_key}' é gerenciado pelo Moodle. Use a trilha do Moodle para atribuir este papel.");
+        }
+        
+        // Atribuir papel no sistema QL (WordPress)
+        $result = $this->assign_role_to_user($user_id, $role_key, $context_type, $context_id);
+        
+        if (is_wp_error($result)) {
+            return $result;
+        }
+        
+        switch ($status) {
+            case 'moodle_sync':
+                error_log("QL Roles: Papel '{$role_key}' gerenciado pelo Moodle (não deveria ser atribuído diretamente)");
+                break;
+                
+            case 'wordpress_fallback':
+                error_log("QL Roles: Papel '{$role_key}' não existe no Moodle, usando apenas permissões WordPress");
+                break;
+                
+            case 'wordpress_only':
+                error_log("QL Roles: Integração Moodle não ativa, usando apenas permissões WordPress");
+                break;
+        }
+        
+        return $result;
+    }
+    
+    /**
+     * Verificar se papel pode ser atribuído diretamente no QL
+     */
+    public function can_assign_role_directly($role_key, $context_type = 'global') {
+        // Papéis globais sempre podem ser atribuídos diretamente
+        if ($context_type === 'global') {
+            return true;
+        }
+        
+        // Para contexto de projeto, verificar se é gerenciado pelo Moodle
+        $status = $this->get_role_integration_status($role_key);
+        
+        return $status !== 'moodle_sync';
+    }
+    
+    /**
+     * Obter fonte de autoridade para um papel
+     */
+    public function get_role_authority_source($role_key, $context_type = 'global') {
+        if ($context_type === 'global') {
+            return 'wordpress';
+        }
+        
+        $status = $this->get_role_integration_status($role_key);
+        
+        switch ($status) {
+            case 'moodle_sync':
+                return 'moodle';
+            case 'wordpress_fallback':
+            case 'wordpress_only':
+                return 'wordpress';
+            default:
+                return 'unknown';
+        }
+    }
+    
+    /**
+     * Importar papel do Moodle (usado pela integração)
+     */
+    public function import_role_from_moodle($user_id, $role_key, $context_type, $context_id, $source_info = []) {
+        // Este método é usado pela integração Moodle para importar papéis
+        $result = $this->assign_role_to_user($user_id, $role_key, $context_type, $context_id);
+        
+        if (!is_wp_error($result)) {
+            // Adicionar metadados sobre a origem Moodle
+            global $wpdb;
+            $table_name = $wpdb->prefix . 'ql_user_organizational_roles';
+            
+            $metadata = json_encode([
+                'source' => 'moodle_import',
+                'imported_at' => current_time('mysql'),
+                'moodle_info' => $source_info
+            ]);
+            
+            $wpdb->update(
+                $table_name,
+                ['metadata' => $metadata],
+                [
+                    'user_id' => $user_id,
+                    'role_key' => $role_key,
+                    'context_type' => $context_type,
+                    'context_id' => $context_id
+                ],
+                ['%s'],
+                ['%d', '%s', '%s', '%d']
+            );
+            
+            error_log("QL Roles: Papel '{$role_key}' importado do Moodle para usuário {$user_id}");
+        }
+        
+        return $result;
+    }
+    
+    /**
+     * Obter configuração de papéis para interface administrativa
+     */
+    public function get_roles_config_for_admin() {
+        $roles_config = [];
+        $moodle_config = get_option('ql_moodle_roles_config', []);
+        $integration_active = $this->is_moodle_integration_active();
+        
+        foreach (self::ORGANIZATIONAL_ROLES as $role_key => $role_data) {
+            $roles_config[$role_key] = [
+                'role_data' => $role_data,
+                'integration_active' => $integration_active,
+                'status' => $this->get_role_integration_status($role_key),
+                'moodle_info' => $moodle_config[$role_key] ?? null
+            ];
+        }
+        
+        return $roles_config;
     }
 }

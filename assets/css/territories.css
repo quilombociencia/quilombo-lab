@@ -1,0 +1,505 @@
+/**
+ * CSS para Sistema de Territórios
+ * Quilombo Laboratório
+ */
+
+/* Mapa básico */
+.ql-territory-map {
+    width: 100%;
+    height: 400px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+/* Seletor de localização do usuário */
+.ql-user-location-selector {
+    background: #f9f9f9;
+    padding: 20px;
+    border-radius: 6px;
+    margin: 20px 0;
+}
+
+.ql-user-location-selector h3 {
+    margin-top: 0;
+    color: #333;
+}
+
+.ql-user-location-selector .regular-text {
+    width: 300px;
+    margin-right: 10px;
+}
+
+/* Grid de territórios */
+.ql-territories-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+    margin: 20px 0;
+}
+
+.ql-territory-card {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: box-shadow 0.3s ease;
+}
+
+.ql-territory-card:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.ql-territory-card h3 {
+    margin-top: 0;
+    color: #333;
+}
+
+.ql-territory-card .territory-type {
+    background: #e74c3c;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 3px;
+    font-size: 12px;
+    text-transform: uppercase;
+    display: inline-block;
+    margin-bottom: 10px;
+}
+
+.ql-territory-card .territory-address {
+    color: #666;
+    font-style: italic;
+    margin-bottom: 10px;
+}
+
+.ql-territory-card .territory-members {
+    color: #27ae60;
+    font-weight: bold;
+}
+
+.ql-territory-card .territory-actions {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #eee;
+}
+
+.ql-territory-card .territory-actions a {
+    text-decoration: none;
+    margin-right: 10px;
+}
+
+/* Mapa em páginas de território */
+.ql-territory-single .territory-header {
+    background: #f8f9fa;
+    padding: 30px 0;
+    margin-bottom: 30px;
+}
+
+.ql-territory-single .territory-meta {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    margin: 30px 0;
+}
+
+.ql-territory-single .territory-info {
+    background: #fff;
+    padding: 20px;
+    border-radius: 6px;
+    border: 1px solid #ddd;
+}
+
+.ql-territory-single .territory-map-container {
+    margin: 30px 0;
+}
+
+/* Indicadores de território */
+.ql-territory-indicator {
+    display: inline-flex;
+    align-items: center;
+    background: #e8f4fd;
+    color: #0073aa;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 14px;
+    margin: 5px 5px 5px 0;
+}
+
+.ql-territory-indicator .dashicons {
+    margin-right: 5px;
+    font-size: 16px;
+}
+
+/* Formulários de território */
+.ql-territory-form {
+    max-width: 600px;
+}
+
+.ql-territory-form .form-field {
+    margin-bottom: 20px;
+}
+
+.ql-territory-form label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+.ql-territory-form input[type="text"],
+.ql-territory-form textarea,
+.ql-territory-form select {
+    width: 100%;
+    max-width: 400px;
+}
+
+.ql-territory-form .field-description {
+    color: #666;
+    font-size: 13px;
+    margin-top: 5px;
+}
+
+/* Controles do mapa */
+.leaflet-control-draw {
+    margin-left: 10px !important;
+}
+
+.leaflet-draw-toolbar {
+    background: rgba(255,255,255,0.9) !important;
+}
+
+/* Popup do mapa */
+.ql-map-popup {
+    text-align: center;
+}
+
+.ql-map-popup h4 {
+    margin: 0 0 10px;
+    color: #333;
+}
+
+.ql-map-popup .territory-link {
+    display: inline-block;
+    background: #0073aa;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 4px;
+    text-decoration: none;
+    margin-top: 10px;
+}
+
+.ql-map-popup .territory-link:hover {
+    background: #005177;
+}
+
+/* Loading states */
+.ql-territory-loading {
+    text-align: center;
+    padding: 40px;
+    color: #666;
+}
+
+.ql-territory-loading .spinner {
+    float: none;
+    margin: 0 auto 20px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .ql-territories-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .ql-territory-single .territory-meta {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+    
+    .ql-user-location-selector .regular-text {
+        width: 100%;
+        margin-bottom: 10px;
+        margin-right: 0;
+    }
+}
+
+/* Admin styles */
+.post-type-ql_territory .form-table th {
+    width: 150px;
+}
+
+.post-type-ql_territory #territory-map {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.post-type-ql_territory .territory-search-results {
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid #ddd;
+    background: white;
+    margin-top: 5px;
+}
+
+.post-type-ql_territory .territory-search-result {
+    padding: 10px;
+    border-bottom: 1px solid #eee;
+    cursor: pointer;
+}
+
+.post-type-ql_territory .territory-search-result:hover {
+    background: #f0f0f0;
+}
+
+.post-type-ql_territory .territory-search-result:last-child {
+    border-bottom: none;
+}
+
+/* Territory type colors */
+.territory-type-edificio { background: #3498db; }
+.territory-type-residencia { background: #2ecc71; }
+.territory-type-rua { background: #95a5a6; }
+.territory-type-bairro { background: #9b59b6; }
+.territory-type-favela { background: #e67e22; }
+.territory-type-vila { background: #1abc9c; }
+.territory-type-sitio { background: #27ae60; }
+.territory-type-aldeia { background: #d35400; }
+.territory-type-cidade { background: #34495e; }
+.territory-type-estado { background: #8e44ad; }
+.territory-type-pais { background: #c0392b; }
+.territory-type-regiao { background: #16a085; }
+.territory-type-continente { background: #2c3e50; }
+
+/* Accessibility */
+.ql-territory-map:focus {
+    outline: 2px solid #0073aa;
+    outline-offset: 2px;
+}
+
+/* Print styles */
+@media print {
+    .ql-territory-map,
+    .leaflet-control-container {
+        display: none;
+    }
+    
+    .ql-territory-card {
+        break-inside: avoid;
+        box-shadow: none;
+        border: 1px solid #ccc;
+    }
+}
+
+/* Modal styles */
+.ql-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ql-modal-content {
+    background: white;
+    border-radius: 8px;
+    max-width: 600px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.ql-modal-header {
+    padding: 20px 25px 15px;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.ql-modal-header h3 {
+    margin: 0;
+    color: #333;
+}
+
+.ql-modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #666;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ql-modal-close:hover {
+    color: #333;
+}
+
+.ql-modal-body {
+    padding: 25px;
+}
+
+.ql-modal-footer {
+    padding: 15px 25px 25px;
+    text-align: right;
+}
+
+.ql-modal-footer .button {
+    margin-left: 10px;
+}
+
+.form-field {
+    margin-bottom: 20px;
+}
+
+.form-field label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 5px;
+    color: #333;
+}
+
+.form-field .regular-text {
+    width: 100%;
+    max-width: none;
+}
+
+.form-field .button {
+    margin-left: 10px;
+}
+
+/* Responsive modal */
+@media (max-width: 768px) {
+    .ql-modal-content {
+        width: 95%;
+        margin: 20px;
+    }
+
+    .ql-modal-header,
+    .ql-modal-body,
+    .ql-modal-footer {
+        padding-left: 15px;
+        padding-right: 15px;
+    }
+}
+
+/* Controles do mapa geral */
+.ql-map-controls {
+    transition: background-color 0.3s ease;
+}
+
+.ql-map-controls label {
+    user-select: none;
+}
+
+.ql-map-controls input[type="checkbox"] {
+    margin: 0;
+    cursor: pointer;
+}
+
+.ql-map-controls select {
+    padding: 5px 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: white;
+}
+
+/* Legenda do mapa */
+.ql-map-legend {
+    border: 1px solid #ddd;
+}
+
+.ql-map-legend .legend-item {
+    transition: opacity 0.2s ease;
+}
+
+/* Marcadores do mapa */
+.ql-territory-marker,
+.ql-user-marker,
+.ql-current-user-marker,
+.ql-other-user-marker {
+    transition: transform 0.2s ease;
+}
+
+.ql-territory-marker:hover,
+.ql-user-marker:hover,
+.ql-current-user-marker:hover,
+.ql-other-user-marker:hover {
+    transform: scale(1.2);
+}
+
+/* Popup de usuário */
+.ql-user-popup {
+    min-width: 150px;
+    text-align: center;
+}
+
+.ql-user-popup strong {
+    display: block;
+    margin-bottom: 5px;
+    color: #333;
+}
+
+.ql-user-popup small {
+    display: block;
+    color: #666;
+    margin-top: 3px;
+}
+
+/* Estilos para estado de carregamento */
+.ql-map-loading {
+    position: relative;
+}
+
+.ql-map-loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 40px;
+    height: 40px;
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #3498db;
+    border-radius: 50%;
+    animation: ql-spin 1s linear infinite;
+}
+
+@keyframes ql-spin {
+    0% { transform: translate(-50%, -50%) rotate(0deg); }
+    100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* Responsivo para controles do mapa */
+@media (max-width: 992px) {
+    .ql-map-controls {
+        flex-direction: column;
+        align-items: flex-start !important;
+        gap: 15px !important;
+    }
+
+    .ql-map-controls > div[style*="border-left"] {
+        border-left: none !important;
+        padding-left: 0 !important;
+        margin-left: 0 !important;
+        width: 100%;
+    }
+
+    .ql-map-controls > div[style*="margin-left: auto"] {
+        margin-left: 0 !important;
+        width: 100%;
+    }
+
+    .ql-map-controls select {
+        width: 100%;
+        max-width: 300px;
+    }
+}

@@ -64,6 +64,31 @@ class QuilomboLaboratorio {
     }
     
     /**
+     * Carregar textdomain com fallback para inglês
+     */
+    private function setup_textdomain() {
+        // Obter o locale atual
+        $locale = get_locale();
+        $domain = 'quilombo-lab';
+        $mofile = $domain . '-' . $locale . '.mo';
+        $path = dirname(QL_PLUGIN_BASENAME) . '/languages/' . $mofile;
+        
+        // Tentar carregar o idioma específico primeiro
+        $loaded = load_plugin_textdomain($domain, false, dirname(QL_PLUGIN_BASENAME) . '/languages');
+        
+        // Se não conseguiu carregar e o locale não é inglês, tentar carregar inglês como fallback
+        if (!$loaded && $locale !== 'en_US') {
+            $en_mofile = $domain . '-en_US.mo';
+            $en_path = WP_PLUGIN_DIR . '/' . dirname(QL_PLUGIN_BASENAME) . '/languages/' . $en_mofile;
+            
+            if (file_exists($en_path)) {
+                load_textdomain($domain, $en_path);
+                error_log("QL: Fallback para inglês aplicado - locale original: $locale");
+            }
+        }
+    }
+
+    /**
      * Inicializar plugin
      */
     public function init() {
@@ -81,8 +106,8 @@ class QuilomboLaboratorio {
         // Hooks WordPress
         $this->setup_hooks();
         
-        // Carregar idiomas
-        load_plugin_textdomain('quilombo-lab', false, dirname(QL_PLUGIN_BASENAME) . '/languages');
+        // Carregar idiomas com fallback para inglês
+        $this->setup_textdomain();
         
         // Log de inicialização
         error_log('Quilombo Laboratório: Plugin inicializado com sucesso');
@@ -129,7 +154,9 @@ class QuilomboLaboratorio {
             'class-ql-status.php',
             'class-ql-database.php',
             'class-ql-project.php',
-            'class-ql-gc-integration.php'
+            'class-ql-gc-integration.php',
+            'class-ql-responsibility-system.php',  // Sistema radicular de responsabilidades
+            'class-ql-decision-authority.php'      // Distribuição de poderes de decisão
         ];
         
         foreach ($core_files as $file) {
@@ -163,7 +190,10 @@ class QuilomboLaboratorio {
             'class-ql-shortcodes.php',
             'class-ql-trilha-sync.php',
             'class-ql-organizational-roles.php', // Novo sistema de papéis organizativos
-            'class-ql-instances.php'             // Novo sistema de instâncias organizacionais
+            'class-ql-instances.php',            // Novo sistema de instâncias organizacionais
+            'class-ql-contestations.php',        // Sistema de contestações
+            'class-ql-governance-modes.php',     // Sistema de modos de governança
+            'class-ql-territories.php'           // Sistema de territorialização e georreferenciamento
         ];
         
         foreach ($optional_files as $file) {
@@ -177,6 +207,21 @@ class QuilomboLaboratorio {
         // if (file_exists(QL_PLUGIN_PATH . 'teste-admin-page.php')) {
         //     require_once QL_PLUGIN_PATH . 'teste-admin-page.php';
         // }
+        
+        // Fix para sincronização em produção - corrige páginas/categorias faltantes
+        if (file_exists(QL_PLUGIN_PATH . 'fix-project-sync-production.php')) {
+            require_once QL_PLUGIN_PATH . 'fix-project-sync-production.php';
+        }
+        
+        // Ferramenta administrativa de ressincronização
+        if (is_admin() && file_exists(QL_PLUGIN_PATH . 'admin-resync-projects.php')) {
+            require_once QL_PLUGIN_PATH . 'admin-resync-projects.php';
+        }
+        
+        // Sincronização hierárquica Moodle → WordPress
+        if (file_exists(QL_PLUGIN_PATH . 'moodle-hierarchy-sync.php')) {
+            require_once QL_PLUGIN_PATH . 'moodle-hierarchy-sync.php';
+        }
         
         // Incluir página de teste do sistema Kanban (comentado para evitar conflitos no frontend)
         // if (file_exists(QL_PLUGIN_PATH . 'admin-test-page.php')) {
@@ -201,6 +246,16 @@ class QuilomboLaboratorio {
         // Database setup - sempre necessário
         if (class_exists('QL_Database')) {
             QL_Database::get_instance();
+        }
+        
+        // Sistema de responsabilidades - core do modelo organizativo
+        if (class_exists('QL_Responsibility_System')) {
+            QL_Responsibility_System::get_instance();
+        }
+        
+        // Sistema de autoridade de decisões - core do modelo organizativo
+        if (class_exists('QL_Decision_Authority')) {
+            QL_Decision_Authority::get_instance();
         }
         
         // Integração GC - sempre necessário
@@ -282,14 +337,28 @@ class QuilomboLaboratorio {
         if (class_exists('QL_Instances')) {
             QL_Instances::get_instance();
         }
+        
+        // Sistema de contestações - extensão do sistema de responsabilidades
+        if (class_exists('QL_Contestations')) {
+            QL_Contestations::get_instance();
+        }
+        
+        // Sistema de modos de governança - visualização e controle organizacional
+        if (class_exists('QL_Governance_Modes')) {
+            QL_Governance_Modes::get_instance();
+        }
+        
+        // Sistema de territorialização e georreferenciamento - PRIORIDADE 0
+        if (class_exists('QL_Territories')) {
+            QL_Territories::get_instance();
+        }
     }
     
     /**
      * Setup hooks WordPress
      */
     private function setup_hooks() {
-        // Assets
-        add_action('wp_enqueue_scripts', [$this, 'enqueue_public_assets']);
+        // Assets (public assets loaded by QL_Public::enqueue_scripts)
         add_action('admin_enqueue_scripts', [$this, 'enqueue_admin_assets']);
         
         // REST API
@@ -304,35 +373,6 @@ class QuilomboLaboratorio {
         // Integration hooks
         add_action('gc_projeto_criado', [$this, 'on_gc_project_created'], 10, 2);
         add_action('gc_projeto_atualizado', [$this, 'on_gc_project_updated'], 10, 2);
-    }
-    
-    /**
-     * Enqueue assets públicos
-     */
-    public function enqueue_public_assets() {
-        wp_enqueue_style(
-            'quilombo-lab-public',
-            QL_PLUGIN_URL . 'assets/css/public.css',
-            [],
-            QL_PLUGIN_VERSION
-        );
-        
-        wp_enqueue_script(
-            'quilombo-lab-public',
-            QL_PLUGIN_URL . 'assets/js/public.js',
-            ['jquery'],
-            QL_PLUGIN_VERSION,
-            true
-        );
-        
-        wp_localize_script('quilombo-lab-public', 'ql_ajax', [
-            'ajax_url' => admin_url('admin-ajax.php'),
-            'nonce' => wp_create_nonce('ql_public_nonce'),
-            'strings' => [
-                'loading' => __('Carregando...', 'quilombo-lab'),
-                'error' => __('Erro ao carregar dados.', 'quilombo-lab'),
-            ]
-        ]);
     }
     
     /**
@@ -434,6 +474,35 @@ class QuilomboLaboratorio {
             QL_PLUGIN_VERSION . '-test',
             true
         );
+        
+        // Assets para visualização de governança - apenas na página de instâncias
+        if ($hook === 'organização_page_quilombo-lab-instances') {
+            // CSS para governança
+            wp_enqueue_style(
+                'quilombo-lab-governance-graph',
+                QL_PLUGIN_URL . 'assets/css/governance-graph.css',
+                ['quilombo-lab-admin'],
+                QL_PLUGIN_VERSION
+            );
+            
+            // Vis.js para visualização de grafos
+            wp_enqueue_script(
+                'vis-network',
+                'https://unpkg.com/vis-network@latest/standalone/umd/vis-network.min.js',
+                [],
+                '9.1.6',
+                true
+            );
+            
+            // Script de governança
+            wp_enqueue_script(
+                'quilombo-lab-governance-graph',
+                QL_PLUGIN_URL . 'assets/js/governance-graph.js',
+                ['jquery', 'vis-network'],
+                QL_PLUGIN_VERSION,
+                true
+            );
+        }
         
         // Script de correção crítica para funcionalidade Kanban - apenas nas páginas do plugin
         if ($is_ql_page || strpos($hook, 'project') !== false) {
@@ -611,10 +680,10 @@ class QuilomboLaboratorio {
             QL_Database::cleanup_old_logs();
         }
         
-        // Atualizar estatísticas
-        if (class_exists('QL_Reports')) {
-            QL_Reports::update_daily_stats();
-        }
+        // Atualizar estatísticas (método será implementado futuramente)
+        // if (class_exists('QL_Reports')) {
+        //     QL_Reports::update_daily_stats();
+        // }
         
         error_log('Quilombo Laboratório: Limpeza diária executada');
     }
@@ -637,6 +706,12 @@ class QuilomboLaboratorio {
         // Sincronizar dados com estrutura do laboratório
         if (class_exists('QL_Project')) {
             QL_Project::sync_from_gc_project($projeto_id, $projeto_data);
+        }
+        
+        // Sincronizar página amigável do projeto
+        if (class_exists('QL_Trilha_Sync')) {
+            $trilha_sync = QL_Trilha_Sync::get_instance();
+            $trilha_sync->on_trilha_updated($projeto_id, $projeto_data);
         }
     }
     
@@ -927,113 +1002,32 @@ class QuilomboLaboratorio {
     }
     
     /**
-     * Configurar dados iniciais - NOVA LÓGICA UNIFICADA
+     * Configurar dados iniciais - SEM CRIAÇÃO AUTOMÁTICA DE PROJETOS
      */
     private function setup_initial_data() {
         global $wpdb;
         
-        // NOVA LÓGICA: Detectar automaticamente trilha ID 1 e criar projeto coletivo correspondente
-        // Manter compatibilidade com configuração legacy
+        // Garantir que as classes necessárias estão carregadas
+        if (!class_exists('QL_Config')) {
+            require_once QL_PLUGIN_PATH . 'includes/class-ql-config.php';
+        }
+        
+        // Configurar trilha ID 1 como trilha do coletivo (para quando a sincronização acontecer)
         if (!get_option('quilombo_laboratorio_trilha_coletivo')) {
             update_option('quilombo_laboratorio_trilha_coletivo', 1);
             error_log('QL: Auto-detecção - Trilha ID 1 (Site Principal) configurada como trilha do coletivo');
         }
         
-        // CONCEITO CORRETO: Criar projeto coletivo inicial (correspondente à trilha ID 1)
-        $existing = $wpdb->get_var(
-            "SELECT id FROM {$wpdb->prefix}ql_projects 
-             WHERE slug = 'quilombo-ciencia-coletivo' LIMIT 1"
-        );
+        // NOVA ABORDAGEM: Não criar projetos automaticamente
+        // O primeiro projeto será criado via sincronização Moodle e terá ID 1
+        // Apenas inicializar configurações básicas sem projeto
         
-        if ($existing) {
-            // Se projeto já existe, garantir que está marcado como coletivo
-            $settings = $wpdb->get_var($wpdb->prepare(
-                "SELECT settings FROM {$wpdb->prefix}ql_projects WHERE id = %d",
-                $existing
-            ));
-            
-            $settings_array = json_decode($settings, true) ?: [];
-            if (!isset($settings_array['is_collective_project'])) {
-                $settings_array['is_collective_project'] = true;
-                $wpdb->update(
-                    $wpdb->prefix . 'ql_projects',
-                    ['settings' => json_encode($settings_array)],
-                    ['id' => $existing],
-                    ['%s'],
-                    ['%d']
-                );
-                error_log('QL: Projeto coletivo existente marcado corretamente');
-            }
-            
-            // Configurar este projeto como coletivo nas configurações unificadas
-            $current_settings = get_option('quilombo_laboratorio_settings', []);
-            if (!isset($current_settings['projeto_coletivo_id']) || $current_settings['projeto_coletivo_id'] == 0) {
-                $current_settings['projeto_coletivo_id'] = $existing;
-                update_option('quilombo_laboratorio_settings', $current_settings);
-                error_log("QL: Projeto existente ID {$existing} configurado como projeto do coletivo");
-            }
-            
-            return;
-        }
-        
-        // Criar projeto coletivo inicial (correspondente à trilha ID 1 quando sincronizada)
-        $wpdb->insert(
-            $wpdb->prefix . 'ql_projects',
-            [
-                'name' => 'Quilombo Ciência - Projeto do Coletivo',
-                'slug' => 'quilombo-ciencia-coletivo',
-                'description' => 'Projeto principal do coletivo Quilombo Ciência (correspondente à trilha do site principal)',
-                'status' => 'active',
-                'visibility' => 'public',
-                'owner_id' => QL_Config::get_default_admin_id(),
-                'priority' => 'high',
-                'color' => '#27ae60',
-                'moodle_course_id' => null, // Será preenchido na sincronização
-                'settings' => json_encode(['is_collective_project' => true])
-            ]
-        );
-        
-        $project_id = $wpdb->insert_id;
-        
-        // Configurar automaticamente nas configurações unificadas
         $current_settings = get_option('quilombo_laboratorio_settings', []);
-        $current_settings['projeto_coletivo_id'] = $project_id;
-        update_option('quilombo_laboratorio_settings', $current_settings);
-        
-        error_log("QL: Projeto coletivo inicial criado - ID: {$project_id} - Auto-configurado como projeto do coletivo");
-        
-        // Criar quadro padrão
-        $wpdb->insert(
-            $wpdb->prefix . 'ql_boards',
-            [
-                'project_id' => $project_id,
-                'name' => 'Organização do Coletivo',
-                'description' => 'Quadro principal do coletivo',
-                'board_type' => 'kanban',
-                'is_default' => 1
-            ]
-        );
-        
-        $board_id = $wpdb->insert_id;
-        
-        // Criar colunas
-        $colunas = [
-            ['name' => 'Planejamento', 'color' => '#e74c3c'],
-            ['name' => 'Em Andamento', 'color' => '#f39c12'],
-            ['name' => 'Revisão', 'color' => '#3498db'],
-            ['name' => 'Concluído', 'color' => '#27ae60']
-        ];
-        
-        foreach ($colunas as $i => $coluna) {
-            $wpdb->insert(
-                $wpdb->prefix . 'ql_columns',
-                [
-                    'board_id' => $board_id,
-                    'name' => $coluna['name'],
-                    'position' => $i,
-                    'color' => $coluna['color']
-                ]
-            );
+        if (!isset($current_settings['projeto_coletivo_id'])) {
+            // Configurar para 0 até a primeira sincronização definir o projeto coletivo
+            $current_settings['projeto_coletivo_id'] = 0;
+            update_option('quilombo_laboratorio_settings', $current_settings);
+            error_log('QL: Configurações inicializadas - aguardando sincronização Moodle para definir projeto coletivo');
         }
     }
     
@@ -1119,6 +1113,12 @@ class QuilomboLaboratorio {
         
         // Agendar sincronização inicial
         update_option('ql_needs_initial_sync', true);
+        
+        // Forçar ressincronização de páginas/categorias dos projetos QL
+        delete_option('ql_projects_pages_synced');
+        
+        // Forçar ressincronização da hierarquia Moodle
+        delete_option('ql_moodle_hierarchy_synced');
         
         // Flush rewrite rules
         flush_rewrite_rules();
@@ -1251,4 +1251,26 @@ function ql_get_project_board($project_id) {
         return QL_Board::get_by_project($project_id);
     }
     return null;
+}
+
+/**
+ * Traduzir status de projeto para exibição
+ */
+function ql_translate_project_status($status) {
+    $translations = [
+        'active' => 'Ativo',
+        'on_hold' => 'Pausado',
+        'completed' => 'Finalizado',
+        'archived' => 'Arquivado',
+        'cancelled' => 'Cancelado',
+        'planning' => 'Planejamento',
+        'draft' => 'Rascunho',
+        'ativo' => 'Ativo',
+        'pausado' => 'Pausado',
+        'finalizado' => 'Finalizado',
+        'arquivado' => 'Arquivado',
+        'rascunho' => 'Rascunho'
+    ];
+    
+    return $translations[$status] ?? ucfirst($status);
 }

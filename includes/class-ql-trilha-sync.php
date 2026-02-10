@@ -52,13 +52,25 @@ class QL_Trilha_Sync {
         if (!wp_next_scheduled('ql_trilha_auto_sync')) {
             wp_schedule_event(time(), 'hourly', 'ql_trilha_auto_sync');
         }
+        
+        // Hook para carregar CSS das páginas de projeto
+        add_action('wp_head', [$this, 'maybe_load_project_styles']);
+        
+        // Hooks para excluir páginas auto-geradas dos menus
+        add_filter('wp_get_nav_menu_items', [$this, 'exclude_projeto_pages_from_nav'], 10, 3);
+        add_filter('get_pages', [$this, 'exclude_projeto_pages_from_page_lists'], 10, 2);
+        add_action('pre_get_posts', [$this, 'exclude_projeto_pages_from_queries']);
     }
     
     /**
      * Registrar taxonomia personalizada para trilhas
      */
     private function register_custom_taxonomy() {
-        // Taxonomia para tipos de trilha (Aprendizagem, Pesquisa, Criação)
+        // TAXONOMIAS DESABILITADAS: Conforme modelo organizativo
+        // Trilhas são sincronizadas via Moodle → Projetos, não precisam aparecer no menu WordPress
+        // Páginas e categorias são criadas automaticamente para projetos quando publicados
+        
+        // Manter taxonomias registradas para funcionalidade interna, mas sem interface admin
         register_taxonomy('trilha_tipo', ['page', 'post'], [
             'labels' => [
                 'name' => 'Tipos de Trilha',
@@ -66,9 +78,10 @@ class QL_Trilha_Sync {
                 'menu_name' => 'Tipos de Trilha'
             ],
             'hierarchical' => true,
-            'public' => true,
-            'show_in_menu' => true,
-            'show_admin_column' => true,
+            'public' => false, // Removido da interface pública
+            'show_ui' => false, // Removido do admin
+            'show_admin_column' => false, // Removido das colunas
+            'show_in_menu' => false, // Não aparecer no menu
             'rewrite' => ['slug' => 'tipo-trilha']
         ]);
         
@@ -80,9 +93,10 @@ class QL_Trilha_Sync {
                 'menu_name' => 'Trilhas'
             ],
             'hierarchical' => true,
-            'public' => true,
-            'show_in_menu' => true,
-            'show_admin_column' => true,
+            'public' => false, // Removido da interface pública
+            'show_ui' => false, // Removido do admin
+            'show_admin_column' => false, // Removido das colunas
+            'show_in_menu' => false, // Não aparecer no menu
             'rewrite' => ['slug' => 'trilha']
         ]);
     }
@@ -326,6 +340,18 @@ class QL_Trilha_Sync {
      * Criar/atualizar página do projeto
      */
     private function create_or_update_trilha_page($projeto, $category_id) {
+        // IMPORTANTE: Só criar página se projeto estiver com status 'ativo' e visibilidade 'publico'
+        if ($projeto->status !== 'ativo' || $projeto->visibilidade !== 'publico') {
+            // Se projeto não está publicado, verificar se existe página e removê-la
+            $existing_page_id = $this->get_mapped_page_id($projeto->id);
+            if ($existing_page_id) {
+                wp_delete_post($existing_page_id, true); // Delete permanente
+                delete_option('ql_projeto_page_' . $projeto->id);
+                error_log("QL Trilha Sync: Página removida para projeto não-público: {$projeto->nome}");
+            }
+            return 0;
+        }
+        
         // Verificar se já existe página mapeada
         $existing_page_id = $this->get_mapped_page_id($projeto->id);
         
@@ -333,11 +359,11 @@ class QL_Trilha_Sync {
         
         $page_data = [
             'post_title' => $projeto->nome,
-            'post_name' => $projeto->slug,
+            'post_name' => sanitize_title($projeto->slug ?: $projeto->nome),
             'post_content' => $content,
-            'post_status' => $projeto->visibilidade === 'publico' ? 'publish' : 'private',
+            'post_status' => 'publish', // Sempre publish para projetos públicos
             'post_type' => 'page',
-            'comment_status' => 'closed',
+            'comment_status' => 'open', // Permitir comentários em páginas de projetos
             'ping_status' => 'closed',
             'post_category' => [$category_id]
         ];
@@ -353,63 +379,43 @@ class QL_Trilha_Sync {
         }
         
         if ($page_id && !is_wp_error($page_id)) {
-            // Salvar metadados
+            // Salvar metadados completos do projeto
+            update_post_meta($page_id, 'ql_projeto_id', $projeto->id);
+            update_post_meta($page_id, 'ql_projeto_tipo', $projeto->tipo ?? 'projeto');
+            update_post_meta($page_id, 'ql_projeto_territorio', $projeto->territorio ?? '');
+            update_post_meta($page_id, 'ql_is_projeto_page', true);
             update_post_meta($page_id, 'gc_projeto_id', $projeto->id);
             update_post_meta($page_id, 'gc_objetivo_financeiro', $projeto->objetivo_financeiro ?? 0);
             update_post_meta($page_id, 'gc_data_inicio', $projeto->data_inicio ?? '');
+            
+            // Marcar para exclusão de menus automáticos
+            update_post_meta($page_id, '_ql_exclude_from_nav', true);
+            update_post_meta($page_id, '_ql_auto_generated_page', true);
+            
+            // Salvar mapeamento projeto -> página
+            update_option('ql_projeto_page_' . $projeto->id, $page_id);
             
             // Associar às taxonomias
             $trilha_term = get_term_by('slug', $projeto->slug, 'trilha');
             if ($trilha_term) {
                 wp_set_post_terms($page_id, [$trilha_term->term_id], 'trilha');
             }
+            
+            error_log("QL Trilha Sync: Página amigável criada/atualizada - ID: {$page_id} para projeto público: {$projeto->nome}");
         }
         
         return is_wp_error($page_id) ? 0 : $page_id;
     }
     
     /**
-     * Gerar conteúdo da página do projeto
+     * Gerar conteúdo da página do projeto usando template unificado
      */
     private function generate_projeto_page_content($projeto, $category_id) {
-        $content = '';
+        // Carregar template unificado
+        require_once plugin_dir_path(dirname(__FILE__)) . 'templates/projeto-page-template.php';
         
-        // Cabeçalho do projeto
-        $content .= "<div class=\"projeto-header\">\n";
-        if ($projeto->descricao) {
-            $content .= "<p class=\"projeto-descricao\">" . esc_html($projeto->descricao) . "</p>\n";
-        }
-        
-        // Informações do projeto
-        $content .= "<div class=\"projeto-info\">\n";
-        if ($projeto->objetivo_financeiro > 0) {
-            $content .= "<p><strong>Objetivo Financeiro:</strong> R$ " . number_format($projeto->objetivo_financeiro, 2, ',', '.') . "</p>\n";
-        }
-        if ($projeto->data_inicio) {
-            $content .= "<p><strong>Data de Início:</strong> " . date_i18n('d/m/Y', strtotime($projeto->data_inicio)) . "</p>\n";
-        }
-        $content .= "</div>\n";
-        $content .= "</div>\n\n";
-        
-        // Laboratório de Projetos
-        $content .= "<div class=\"projeto-laboratorio\">\n";
-        $content .= "<h2>Laboratório de Projetos</h2>\n";
-        $content .= "[ql_projeto slug=\"{$projeto->slug}\"]\n";
-        $content .= "</div>\n\n";
-        
-        // Posts da categoria (tarefas)
-        $content .= "<div class=\"projeto-posts\">\n";
-        $content .= "<h2>Tarefas e Atividades</h2>\n";
-        $content .= "<p>Posts categorizados aqui aparecerão como tarefas do projeto.</p>\n";
-        $content .= "</div>\n\n";
-        
-        // Link para o painel administrativo
-        $content .= "<div class=\"projeto-admin\">\n";
-        $content .= "<h2>Gestão do Projeto</h2>\n";
-        $content .= "<p><a href=\"" . admin_url('admin.php?page=quilombo-lab-projetos') . "\" class=\"button button-primary\">Acessar Painel Administrativo</a></p>\n";
-        $content .= "</div>\n";
-        
-        return $content;
+        // Usar o template unificado para gerar o conteúdo
+        return QL_Project_Page_Template::generate_project_page_content($projeto);
     }
     
     /**
@@ -621,5 +627,147 @@ class QL_Trilha_Sync {
         ];
         
         return $map[$gc_visibility] ?? 'team';
+    }
+    
+    /**
+     * Sincronização agendada de trilhas (cron job)
+     */
+    public function scheduled_trilha_sync() {
+        error_log('QL Trilha Sync: Executando sincronização agendada');
+        
+        // Sincronizar projetos do GC se disponível
+        $this->maybe_sync_existing_trilhas();
+        
+        // Log do resultado
+        error_log('QL Trilha Sync: Sincronização agendada concluída');
+    }
+    
+    /**
+     * Excluir páginas auto-geradas de projetos das consultas do frontend
+     * APENAS para listagens, NÃO para acesso direto às páginas
+     */
+    public function exclude_projeto_pages_from_queries($query) {
+        // Só aplicar no frontend e em consultas principais
+        if (is_admin() || !$query->is_main_query()) {
+            return;
+        }
+        
+        // NÃO aplicar quando está acessando uma página específica
+        if ($query->is_page() && !empty($query->get('pagename'))) {
+            return;
+        }
+        
+        // NÃO aplicar quando está acessando por page_id
+        if ($query->is_page() && !empty($query->get('page_id'))) {
+            return;
+        }
+        
+        // Só aplicar em consultas de listagem (home, archive, etc)
+        if (!$query->is_home() && !$query->is_front_page() && !$query->is_archive()) {
+            return;
+        }
+        
+        // Obter IDs das páginas auto-geradas
+        $auto_generated_pages = get_posts([
+            'post_type' => 'page',
+            'meta_key' => '_ql_auto_generated_page',
+            'meta_value' => true,
+            'fields' => 'ids',
+            'posts_per_page' => -1
+        ]);
+        
+        if (!empty($auto_generated_pages)) {
+            // Excluir essas páginas da consulta de listagem
+            $exclude = $query->get('post__not_in') ?: [];
+            $exclude = array_merge($exclude, $auto_generated_pages);
+            $query->set('post__not_in', $exclude);
+        }
+    }
+    
+    /**
+     * Excluir páginas auto-geradas das listas de páginas
+     */
+    public function exclude_projeto_pages_from_page_lists($pages, $args) {
+        // Se não há páginas ou argumentos específicos, retornar sem modificação
+        if (empty($pages) || !is_array($pages)) {
+            return $pages;
+        }
+        
+        // Obter IDs das páginas auto-geradas
+        $auto_generated_pages = get_posts([
+            'post_type' => 'page',
+            'meta_key' => '_ql_auto_generated_page',
+            'meta_value' => true,
+            'fields' => 'ids',
+            'posts_per_page' => -1
+        ]);
+        
+        if (empty($auto_generated_pages)) {
+            return $pages;
+        }
+        
+        // Filtrar páginas auto-geradas da lista
+        $filtered_pages = [];
+        foreach ($pages as $page) {
+            if (!in_array($page->ID, $auto_generated_pages)) {
+                $filtered_pages[] = $page;
+            }
+        }
+        
+        return $filtered_pages;
+    }
+    
+    /**
+     * Excluir páginas auto-geradas dos menus de navegação
+     */
+    public function exclude_projeto_pages_from_nav($items, $menu, $args) {
+        // Se não há itens, retornar sem modificação
+        if (empty($items) || !is_array($items)) {
+            return $items;
+        }
+        
+        // Obter IDs das páginas auto-geradas
+        $auto_generated_pages = get_posts([
+            'post_type' => 'page',
+            'meta_key' => '_ql_auto_generated_page',
+            'meta_value' => true,
+            'fields' => 'ids',
+            'posts_per_page' => -1
+        ]);
+        
+        if (empty($auto_generated_pages)) {
+            return $items;
+        }
+        
+        // Filtrar itens do menu que correspondem a páginas auto-geradas
+        $filtered_items = [];
+        foreach ($items as $item) {
+            // Verificar se o item do menu corresponde a uma página auto-gerada
+            if ($item->type === 'post_type' && $item->object === 'page') {
+                if (!in_array($item->object_id, $auto_generated_pages)) {
+                    $filtered_items[] = $item;
+                }
+            } else {
+                $filtered_items[] = $item;
+            }
+        }
+        
+        return $filtered_items;
+    }
+    
+    /**
+     * Carregar estilos CSS para páginas de projeto se necessário
+     */
+    public function maybe_load_project_styles() {
+        if (is_page()) {
+            global $post;
+            $is_projeto_page = get_post_meta($post->ID, 'ql_is_projeto_page', true);
+            
+            if ($is_projeto_page) {
+                // Carregar template para obter os estilos
+                require_once plugin_dir_path(dirname(__FILE__)) . 'templates/projeto-page-template.php';
+                QL_Project_Page_Template::print_project_page_styles();
+            }
+        }
     }
 }
