@@ -182,7 +182,8 @@ class QL_Config {
             'url' => self::get('integration', 'moodle_url', ''),
             'token' => self::get('integration', 'moodle_token', ''),
             'default_course_id' => self::get('integration', 'moodle_default_course_id', 1),
-            'database_name' => self::get('integration', 'moodle_database_name', 'moodle_escola')
+            'database' => self::get('integration', 'moodle_database_name', 'moodle_escola'),
+            'dataroot' => self::get('integration', 'moodle_dataroot', '/var/www/moodledata')
         ];
     }
     

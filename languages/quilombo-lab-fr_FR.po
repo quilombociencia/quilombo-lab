@@ -1,0 +1,329 @@
+# Quilombo Laboratório de Projetos
+# French (France) Language File
+msgid ""
+msgstr ""
+"Project-Id-Version: Quilombo Laboratório de Projetos\n"
+"POT-Creation-Date: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: fr_FR\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 3.0\n"
+
+msgid "Alta"
+msgstr "Haute"
+
+msgid "Atualizar Projeto"
+msgstr "Mettre à jour le Projet"
+
+msgid "Avançado"
+msgstr "Avancé"
+
+msgid "Baixa"
+msgstr "Basse"
+
+msgid "Carregando..."
+msgstr "Chargement..."
+
+msgid "Carregando eventos..."
+msgstr "Chargement des événements..."
+
+msgid "⚙️ Configurações"
+msgstr "⚙️ Paramètres"
+
+msgid "Configurações"
+msgstr "Paramètres"
+
+msgid "Configurações Avançadas"
+msgstr "Paramètres Avancés"
+
+msgid "Configurações avançadas salvas com sucesso!"
+msgstr "Paramètres avancés sauvegardés avec succès !"
+
+msgid "Configurações de integração salvas com sucesso!"
+msgstr "Paramètres d'intégration sauvegardés avec succès !"
+
+msgid "Configurações do Sistema"
+msgstr "Paramètres Système"
+
+msgid "Configurações do sistema salvas com sucesso!"
+msgstr "Paramètres système sauvegardés avec succès !"
+
+msgid "Configurações Gerais"
+msgstr "Paramètres Généraux"
+
+msgid "Configurações gerais salvas com sucesso!"
+msgstr "Paramètres généraux sauvegardés avec succès !"
+
+msgid "Criada por %s"
+msgstr "Créé par %s"
+
+msgid "Criada %s"
+msgstr "Créé %s"
+
+msgid "Criado em %s"
+msgstr "Créé le %s"
+
+msgid "Criar tarefas"
+msgstr "Créer des tâches"
+
+msgid "%d de %d responsabilidades atribuídas"
+msgstr "%d de %d responsabilités attribuées"
+
+msgid "Editar Evento"
+msgstr "Modifier l'Événement"
+
+msgid "Editar próprias tarefas"
+msgstr "Modifier ses propres tâches"
+
+msgid "Editar todas as tarefas"
+msgstr "Modifier toutes les tâches"
+
+msgid "Erro ao alterar trilha coletiva. Verifique os logs."
+msgstr "Erreur lors du changement de parcours collectif. Vérifiez les logs."
+
+msgid "Erro ao atualizar projeto."
+msgstr "Erreur lors de la mise à jour du projet."
+
+msgid "Erro ao carregar dados"
+msgstr "Erreur lors du chargement des données"
+
+msgid "Erro ao carregar dados."
+msgstr "Erreur lors du chargement des données."
+
+msgid "Erro ao configurar projeto do coletivo: "
+msgstr "Erreur lors de la configuration du projet collectif : "
+
+msgid "Erro ao excluir projeto: "
+msgstr "Erreur lors de la suppression du projet : "
+
+msgid "Erro ao mover tarefa."
+msgstr "Erreur lors du déplacement de la tâche."
+
+msgid "Esta página exibe os projetos públicos do Laboratório."
+msgstr "Cette page affiche les projets publics du Laboratoire."
+
+msgid "Excluir tarefas"
+msgstr "Supprimer les tâches"
+
+msgid "Funcionalidade não disponível"
+msgstr "Fonctionnalité non disponible"
+
+msgid "Gerais"
+msgstr "Général"
+
+msgid "Gerenciar projetos"
+msgstr "Gérer les projets"
+
+msgid "Gerenciar quadros"
+msgstr "Gérer les tableaux"
+
+msgid "Gerenciar usuários do Laboratório"
+msgstr "Gérer les utilisateurs du Laboratoire"
+
+msgid "Gerente de Projeto"
+msgstr "Chef de Projet"
+
+msgid "Início: %s"
+msgstr "Début : %s"
+
+msgid "🌐 Instâncias"
+msgstr "🌐 Instances"
+
+msgid "Instâncias Organizacionais"
+msgstr "Instances Organisationnelles"
+
+msgid "Integração Moodle"
+msgstr "Intégration Moodle"
+
+msgid "Integrações"
+msgstr "Intégrations"
+
+msgid "Kanban"
+msgstr "Kanban"
+
+msgid "Kanban Board"
+msgstr "Tableau Kanban"
+
+msgid "Laboratório"
+msgstr "Laboratoire"
+
+msgid "Laboratório de Projetos"
+msgstr "Laboratoire de Projets"
+
+msgid "Membro da Equipe"
+msgstr "Membre de l'Équipe"
+
+msgid "🎓 Moodle"
+msgstr "🎓 Moodle"
+
+msgid "Nenhuma coluna configurada"
+msgstr "Aucune colonne configurée"
+
+msgid "Nenhum curso foi sincronizado ainda."
+msgstr "Aucun cours n'a encore été synchronisé."
+
+msgid "Nenhum projeto encontrado"
+msgstr "Aucun projet trouvé"
+
+msgid "Nenhum quadro disponível"
+msgstr "Aucun tableau disponible"
+
+msgid "Normal"
+msgstr "Normal"
+
+msgid "Novo Evento"
+msgstr "Nouvel Événement"
+
+msgid "Nunca"
+msgstr "Jamais"
+
+msgid "Observador"
+msgstr "Observateur"
+
+msgid "O projeto do coletivo não pode ser excluído."
+msgstr "Le projet collectif ne peut pas être supprimé."
+
+msgid "Organização"
+msgstr "Organisation"
+
+msgid "🏠 Painel"
+msgstr "🏠 Tableau de bord"
+
+msgid "Painel"
+msgstr "Tableau de bord"
+
+msgid "🎭 Papéis"
+msgstr "🎭 Rôles"
+
+msgid "Papéis Organizativos"
+msgstr "Rôles Organisationnels"
+
+msgid "Para funcionalidades financeiras avançadas, instale o Plugin Gestão Coletiva versão 2.0.0 ou superior. O Quilombo Laboratório funciona independentemente."
+msgstr "Pour des fonctionnalités financières avancées, installez le Plugin Gestion Collective version 2.0.0 ou supérieure. Quilombo Laboratoire fonctionne indépendamment."
+
+msgid "🗳️ Participação"
+msgstr "🗳️ Participation"
+
+msgid "Participação (Consultas e Contestações)"
+msgstr "Participation (Consultations et Contestations)"
+
+msgid "Plugin Gestão Coletiva detectado mas algumas tabelas não foram encontradas. Funcionalidades de integração podem estar limitadas."
+msgstr "Plugin Gestion Collective détecté mais certaines tables n'ont pas été trouvées. Les fonctionnalités d'intégration peuvent être limitées."
+
+msgid "Projeto não encontrado."
+msgstr "Projet non trouvé."
+
+msgid "Projeto não encontrado ou não é público"
+msgstr "Projet non trouvé ou non public"
+
+msgid "Projeto Público"
+msgstr "Projet Public"
+
+msgid "📋 Projetos"
+msgstr "📋 Projets"
+
+msgid "Projetos"
+msgstr "Projets"
+
+msgid "Projeto \"%s\" agora é responsável pela gestão do coletivo! %s"
+msgstr "Le projet \"%s\" est maintenant responsable de la gestion du collectif ! %s"
+
+msgid "Projetos Públicos"
+msgstr "Projets Publics"
+
+msgid "Projetos sincronizados do Moodle não podem ser excluídos."
+msgstr "Les projets synchronisés de Moodle ne peuvent pas être supprimés."
+
+msgid "Quadro não encontrado ou não é público"
+msgstr "Tableau non trouvé ou non public"
+
+msgid "Quadros"
+msgstr "Tableaux"
+
+msgid "Quadros do Projeto"
+msgstr "Tableaux du Projet"
+
+msgid "Quadros do Projeto: %s"
+msgstr "Tableaux du Projet : %s"
+
+msgid "Quilombo Laboratório funcionando de forma independente. Para funcionalidades avançadas de gestão financeira, ative o Plugin Gestão Coletiva."
+msgstr "Quilombo Laboratoire fonctionne de manière indépendante. Pour des fonctionnalités avancées de gestion financière, activez le Plugin Gestion Collective."
+
+msgid "Quilombo Laboratório requer o Plugin Gestão Coletiva ativo para funcionar corretamente."
+msgstr "Quilombo Laboratoire nécessite le Plugin Gestion Collective actif pour fonctionner correctement."
+
+msgid "Quilombo Laboratório requer PHP 7.4 ou superior. Versão atual: "
+msgstr "Quilombo Laboratoire nécessite PHP 7.4 ou supérieur. Version actuelle : "
+
+msgid "⚙️ Responsabilidades"
+msgstr "⚙️ Responsabilités"
+
+msgid "Responsabilidades"
+msgstr "Responsabilités"
+
+msgid "Salvar Configurações"
+msgstr "Sauvegarder les Paramètres"
+
+msgid "Sistema"
+msgstr "Système"
+
+msgid "Site: %s"
+msgstr "Site : %s"
+
+msgid "%s - %s"
+msgstr "%s - %s"
+
+msgid "🔍 Status"
+msgstr "🔍 Statut"
+
+msgid "Status"
+msgstr "Statut"
+
+msgid "Status do Sistema"
+msgstr "Statut du Système"
+
+msgid "Tabelas do Plugin Gestão Coletiva não encontradas. Verifique a instalação."
+msgstr "Tables du Plugin Gestion Collective non trouvées. Vérifiez l'installation."
+
+msgid "Tarefa movida com sucesso!"
+msgstr "Tâche déplacée avec succès !"
+
+msgid "Tem certeza que deseja excluir?"
+msgstr "Êtes-vous sûr de vouloir supprimer ?"
+
+msgid "Tem certeza que deseja excluir este evento?"
+msgstr "Êtes-vous sûr de vouloir supprimer cet événement ?"
+
+msgid "Trilha coletiva configurada, mas ainda não há projeto correspondente. Execute a sincronização Moodle."
+msgstr "Parcours collectif configuré, mais il n'y a pas encore de projet correspondant. Exécutez la synchronisation Moodle."
+
+msgid "Trilha do coletivo alterada com sucesso! Projeto #%d agora é o projeto coletivo único."
+msgstr "Parcours du collectif changé avec succès ! Le projet #%d est maintenant le projet collectif unique."
+
+msgid "Trilha selecionada não foi encontrada. Execute a sincronização Moodle primeiro."
+msgstr "Parcours sélectionné non trouvé. Exécutez la synchronisation Moodle en premier."
+
+msgid "Urgente"
+msgstr "Urgent"
+
+msgid "Ver projetos do Laboratório"
+msgstr "Voir les projets du Laboratoire"
+
+msgid "Ver relatórios"
+msgstr "Voir les rapports"
+
+msgid "Versão: %s"
+msgstr "Version : %s"
+
+msgid "Erro ao criar comunidade:"
+msgstr "Erreur lors de la création de la communauté :"
+
+msgid "Comunidade criada com sucesso! %d membros adicionados automaticamente."
+msgstr "Communauté créée avec succès ! %d membres ajoutés automatiquement."
+
+msgid "Por favor, preencha todos os campos obrigatórios."
+msgstr "Veuillez remplir tous les champs obligatoires."

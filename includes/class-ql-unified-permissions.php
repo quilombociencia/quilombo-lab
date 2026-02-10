@@ -358,20 +358,35 @@ class QL_Unified_Permissions {
      */
     private function save_user_permission($user_id, $permission_data) {
         global $wpdb;
-        
+
         $table_name = $wpdb->prefix . 'ql_unified_permissions';
         $permission_data['user_id'] = $user_id;
-        
+
+        // Garantir que project_id existe no array
+        $project_id = $permission_data['project_id'] ?? null;
+        $permission_data['project_id'] = $project_id;
+
         // Verificar se já existe
-        $existing = $wpdb->get_row($wpdb->prepare("
-            SELECT id FROM $table_name 
-            WHERE user_id = %d AND `system` = %s AND context = %s AND project_id %s
-        ", 
-            $user_id, 
-            $permission_data['system'], 
-            $permission_data['context'],
-            $permission_data['project_id'] ? "= {$permission_data['project_id']}" : "IS NULL"
-        ));
+        if ($project_id) {
+            $existing = $wpdb->get_row($wpdb->prepare("
+                SELECT id FROM $table_name
+                WHERE user_id = %d AND `system` = %s AND context = %s AND project_id = %d
+            ",
+                $user_id,
+                $permission_data['system'],
+                $permission_data['context'],
+                $project_id
+            ));
+        } else {
+            $existing = $wpdb->get_row($wpdb->prepare("
+                SELECT id FROM $table_name
+                WHERE user_id = %d AND `system` = %s AND context = %s AND project_id IS NULL
+            ",
+                $user_id,
+                $permission_data['system'],
+                $permission_data['context']
+            ));
+        }
         
         if ($existing) {
             // Atualizar

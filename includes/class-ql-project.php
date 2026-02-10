@@ -28,6 +28,11 @@ class QL_Project {
     private function __construct() {
         global $wpdb;
         $this->table_name = $wpdb->prefix . 'ql_projects';
+        
+        // Hooks para integrar com sistema de responsabilidades
+        add_action('ql_circle_formed', [$this, 'on_circle_formed'], 10, 2);
+        add_action('ql_member_added_to_instance', [$this, 'check_circle_completion'], 10, 3);
+        add_action('ql_member_removed_from_instance', [$this, 'check_circle_deactivation'], 10, 3);
     }
     
     /**
@@ -99,6 +104,7 @@ class QL_Project {
     
     /**
      * Criar projeto
+     * Conforme modelo organizativo: projeto inicia inativo até formar círculo completo
      */
     public function create($data) {
         global $wpdb;
@@ -108,18 +114,37 @@ class QL_Project {
             return new WP_Error('missing_data', 'Nome é obrigatório');
         }
         
+        // Projetos começam como "initial" (círculo inicial) até formarem círculo completo
+        $initial_status = 'initial';
+        if (!empty($data['status']) && in_array($data['status'], ['initial', 'forming', 'active', 'inactive'])) {
+            $initial_status = $data['status'];
+        }
+        
         $project_data = [
             'name' => sanitize_text_field($data['name']),
             'description' => !empty($data['description']) ? sanitize_textarea_field($data['description']) : '',
-            'status' => !empty($data['status']) ? sanitize_text_field($data['status']) : 'active',
+            'status' => $initial_status,
             'visibility' => !empty($data['visibility']) ? sanitize_text_field($data['visibility']) : 'team',
             'owner_id' => !empty($data['owner_id']) ? intval($data['owner_id']) : get_current_user_id(),
             'start_date' => !empty($data['start_date']) ? sanitize_text_field($data['start_date']) : null,
             'end_date' => !empty($data['end_date']) ? sanitize_text_field($data['end_date']) : null,
             'priority' => !empty($data['priority']) ? sanitize_text_field($data['priority']) : 'normal',
             'gc_projeto_id' => !empty($data['gc_projeto_id']) ? intval($data['gc_projeto_id']) : null,
+            'moodle_course_id' => !empty($data['moodle_course_id']) ? intval($data['moodle_course_id']) : null,
+            'project_type' => !empty($data['project_type']) ? sanitize_text_field($data['project_type']) : 'creation',
+            'activation_ready' => false,
+            'circle_complete' => false,
             'created_at' => current_time('mysql'),
-            'updated_at' => current_time('mysql')
+            'updated_at' => current_time('mysql'),
+            'metadata' => json_encode([
+                'circle_formation_stage' => 'initial',
+                'required_roles_filled' => [],
+                'activation_requirements' => [
+                    'min_members' => 3,
+                    'required_roles' => ['guia'],
+                    'all_roles_assigned' => false
+                ]
+            ])
         ];
         
         $result = $wpdb->insert($this->table_name, $project_data);
@@ -130,8 +155,45 @@ class QL_Project {
         
         $project_id = $wpdb->insert_id;
         
-        // Adicionar owner como membro admin
+        // Adicionar owner como membro admin com papel de Guia
         $this->add_member($project_id, $project_data['owner_id'], 'manager');
+        
+        // Atribuir responsabilidade de Guia ao criador
+        if (class_exists('QL_Responsibility_System')) {
+            $responsibility_system = QL_Responsibility_System::get_instance();
+            $responsibility_system->assign_responsibility(
+                'guia',
+                'person',
+                $project_data['owner_id'],
+                'project',
+                $project_id
+            );
+        }
+        
+        // Criar círculo inicial associado ao projeto
+        if (class_exists('QL_Instances')) {
+            $instances = QL_Instances::get_instance();
+            $circle_id = $instances->create_instance(
+                'circulo',
+                'Círculo Inicial - ' . $data['name'],
+                $project_data['owner_id'],
+                [
+                    'description' => 'Círculo inicial do projeto ' . $data['name'],
+                    'project_id' => $project_id,
+                    'status' => 'forming',
+                    'metadata' => [
+                        'is_initial_circle' => true,
+                        'project_id' => $project_id,
+                        'formation_stage' => 'initial'
+                    ]
+                ]
+            );
+            
+            if (!is_wp_error($circle_id)) {
+                // Adicionar o dono ao círculo inicial
+                $instances->add_member_to_instance($circle_id, $project_data['owner_id'], 'founder');
+            }
+        }
         
         // Hook para extensibilidade
         do_action('ql_project_created', $project_id, $project_data);
@@ -165,6 +227,343 @@ class QL_Project {
         ];
         
         return $wpdb->insert($wpdb->prefix . 'ql_project_members', $member_data);
+    }
+    
+    /**
+     * Verificar se círculo de projeto está completo
+     * Conforme modelo organizativo: mínimo 3 pessoas para ativação
+     */
+    public function check_circle_completion($instance_id, $user_id, $role) {
+        if (!class_exists('QL_Instances')) {
+            return;
+        }
+        
+        $instances = QL_Instances::get_instance();
+        $instance = $instances->get_instance_by_id($instance_id);
+        
+        if (!$instance || $instance->type !== 'circulo') {
+            return;
+        }
+        
+        // Verificar se é círculo de projeto
+        $metadata = json_decode($instance->metadata ?: '{}', true);
+        $project_id = $metadata['project_id'] ?? null;
+        
+        if (!$project_id) {
+            return;
+        }
+        
+        $this->evaluate_project_activation($project_id);
+    }
+    
+    /**
+     * Verificar se projeto deve ser desativado quando membro sai
+     */
+    public function check_circle_deactivation($instance_id, $user_id, $role) {
+        if (!class_exists('QL_Instances')) {
+            return;
+        }
+        
+        $instances = QL_Instances::get_instance();
+        $instance = $instances->get_instance_by_id($instance_id);
+        
+        if (!$instance || $instance->type !== 'circulo') {
+            return;
+        }
+        
+        // Verificar se é círculo de projeto
+        $metadata = json_decode($instance->metadata ?: '{}', true);
+        $project_id = $metadata['project_id'] ?? null;
+        
+        if (!$project_id) {
+            return;
+        }
+        
+        // Contar membros restantes
+        $members = $instances->get_instance_members($instance_id);
+        
+        if (count($members) < 3) {
+            $this->deactivate_project($project_id, 'insufficient_members');
+        }
+    }
+    
+    /**
+     * Avaliar se projeto pode ser ativado
+     */
+    private function evaluate_project_activation($project_id) {
+        global $wpdb;
+        
+        $project = $this->get_by_id($project_id);
+        if (!$project || $project['status'] === 'active') {
+            return;
+        }
+        
+        if (!class_exists('QL_Instances')) {
+            return;
+        }
+        
+        $instances = QL_Instances::get_instance();
+        
+        // Buscar círculo principal do projeto
+        $project_circles = $this->get_project_circles($project_id);
+        if (empty($project_circles)) {
+            return;
+        }
+        
+        $main_circle = $project_circles[0]; // Primeiro círculo (inicial)
+        $members = $instances->get_instance_members($main_circle->id);
+        
+        // Verificar requisitos de ativação
+        $activation_ready = $this->check_activation_requirements($project_id, $main_circle->id, $members);
+        
+        if ($activation_ready) {
+            $this->activate_project($project_id);
+        } else {
+            // Atualizar status para "forming" se tem pelo menos 2 pessoas
+            if (count($members) >= 2 && $project['status'] === 'initial') {
+                $this->update_project_status($project_id, 'forming');
+            }
+        }
+    }
+    
+    /**
+     * Verificar requisitos de ativação
+     */
+    private function check_activation_requirements($project_id, $circle_id, $members) {
+        // Requisito mínimo: 3 pessoas
+        if (count($members) < 3) {
+            return false;
+        }
+        
+        // Verificar se tem pessoa com responsabilidade de Guia
+        if (class_exists('QL_Responsibility_System')) {
+            $responsibility_system = QL_Responsibility_System::get_instance();
+            
+            $has_guide = false;
+            foreach ($members as $member) {
+                if ($responsibility_system->has_responsibility($member->user_id, 'guia', 'project', $project_id)) {
+                    $has_guide = true;
+                    break;
+                }
+            }
+            
+            if (!$has_guide) {
+                return false;
+            }
+        }
+        
+        return true;
+    }
+    
+    /**
+     * Ativar projeto
+     */
+    public function activate_project($project_id) {
+        global $wpdb;
+        
+        $project = $this->get_by_id($project_id);
+        if (!$project) {
+            return false;
+        }
+        
+        // Atualizar status do projeto
+        $result = $this->update_project_status($project_id, 'active');
+        
+        if (!$result) {
+            return false;
+        }
+        
+        // Atualizar círculo para "complete"
+        $project_circles = $this->get_project_circles($project_id);
+        if (!empty($project_circles)) {
+            $main_circle = $project_circles[0];
+            
+            if (class_exists('QL_Instances')) {
+                $instances = QL_Instances::get_instance();
+                $instances->update_instance_status($main_circle->id, 'complete');
+            }
+        }
+        
+        // Criar fundo na Gestão Coletiva (se integrado)
+        if (class_exists('QL_GC_Integration')) {
+            $gc_integration = QL_GC_Integration::get_instance();
+            $gc_integration->create_project_fund($project_id);
+        }
+        
+        // Publicar página do projeto no WordPress
+        $this->publish_project_page($project_id);
+        
+        // Disparar hooks
+        do_action('ql_project_activated', $project_id, $project);
+        do_action('ql_circle_formed', $project_circles[0]->id, $project_id);
+        
+        error_log("QL Project: Projeto {$project_id} ativado - círculo completo formado");
+        
+        return true;
+    }
+    
+    /**
+     * Desativar projeto
+     */
+    public function deactivate_project($project_id, $reason = 'manual') {
+        global $wpdb;
+        
+        $project = $this->get_by_id($project_id);
+        if (!$project) {
+            return false;
+        }
+        
+        // Atualizar status do projeto
+        $result = $this->update_project_status($project_id, 'inactive');
+        
+        if (!$result) {
+            return false;
+        }
+        
+        // Pausar fundo na Gestão Coletiva
+        if (class_exists('QL_GC_Integration')) {
+            $gc_integration = QL_GC_Integration::get_instance();
+            $gc_integration->pause_project_fund($project_id);
+        }
+        
+        // Atualizar página do projeto para rascunho
+        $this->unpublish_project_page($project_id);
+        
+        // Disparar hooks
+        do_action('ql_project_deactivated', $project_id, $reason, $project);
+        
+        error_log("QL Project: Projeto {$project_id} desativado - motivo: {$reason}");
+        
+        return true;
+    }
+    
+    /**
+     * Atualizar status do projeto
+     */
+    private function update_project_status($project_id, $new_status) {
+        global $wpdb;
+        
+        $result = $wpdb->update(
+            $this->table_name,
+            [
+                'status' => $new_status,
+                'updated_at' => current_time('mysql')
+            ],
+            ['id' => $project_id],
+            ['%s', '%s'],
+            ['%d']
+        );
+        
+        return $result !== false;
+    }
+    
+    /**
+     * Obter círculos de um projeto
+     */
+    private function get_project_circles($project_id) {
+        if (!class_exists('QL_Instances')) {
+            return [];
+        }
+        
+        global $wpdb;
+        $instances_table = $wpdb->prefix . 'ql_instances';
+        
+        return $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM $instances_table 
+             WHERE type = 'circulo' 
+             AND JSON_EXTRACT(metadata, '$.project_id') = %d 
+             ORDER BY created_at ASC",
+            $project_id
+        ));
+    }
+    
+    /**
+     * Publicar página do projeto no WordPress
+     */
+    private function publish_project_page($project_id) {
+        $project = $this->get_by_id($project_id);
+        if (!$project) {
+            return false;
+        }
+        
+        // Verificar se já existe página
+        $existing_page = get_posts([
+            'post_type' => 'page',
+            'meta_query' => [
+                [
+                    'key' => 'ql_project_id',
+                    'value' => $project_id,
+                    'compare' => '='
+                ]
+            ],
+            'posts_per_page' => 1
+        ]);
+        
+        if (!empty($existing_page)) {
+            // Atualizar página existente para publicada
+            wp_update_post([
+                'ID' => $existing_page[0]->ID,
+                'post_status' => 'publish'
+            ]);
+            return $existing_page[0]->ID;
+        }
+        
+        // Criar nova página
+        $page_data = [
+            'post_title' => $project['name'],
+            'post_content' => $project['description'],
+            'post_status' => 'publish',
+            'post_type' => 'page',
+            'post_author' => $project['owner_id'],
+            'meta_input' => [
+                'ql_project_id' => $project_id,
+                'ql_project_type' => $project['project_type'],
+                'ql_auto_generated' => true
+            ]
+        ];
+        
+        $page_id = wp_insert_post($page_data);
+        
+        if ($page_id && !is_wp_error($page_id)) {
+            // Atualizar projeto com ID da página
+            global $wpdb;
+            $wpdb->update(
+                $this->table_name,
+                ['wordpress_page_id' => $page_id],
+                ['id' => $project_id],
+                ['%d'],
+                ['%d']
+            );
+            
+            return $page_id;
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Despublicar página do projeto
+     */
+    private function unpublish_project_page($project_id) {
+        $project = $this->get_by_id($project_id);
+        if (!$project || empty($project['wordpress_page_id'])) {
+            return false;
+        }
+        
+        wp_update_post([
+            'ID' => $project['wordpress_page_id'],
+            'post_status' => 'draft'
+        ]);
+        
+        return true;
+    }
+    
+    /**
+     * Hook: Quando círculo é formado
+     */
+    public function on_circle_formed($circle_id, $project_id) {
+        // Círculo já foi ativado, não precisa fazer nada adicional
+        error_log("QL Project: Círculo {$circle_id} do projeto {$project_id} foi formado");
     }
     
     /**

@@ -42,15 +42,15 @@ class QL_Public {
         );
         
         add_rewrite_rule(
-            '^lab/quadro/([^/]+)/?$',
-            'index.php?pagename=lab&ql_board_slug=$matches[1]',
+            '^lab/quadro/([0-9]+)/?$',
+            'index.php?pagename=lab&ql_board_id=$matches[1]',
             'top'
         );
-        
+
         // Adicionar query vars
         add_filter('query_vars', function($vars) {
             $vars[] = 'ql_project_slug';
-            $vars[] = 'ql_board_slug';
+            $vars[] = 'ql_board_id';
             return $vars;
         });
     }
@@ -62,14 +62,14 @@ class QL_Public {
         // Post type para projetos públicos
         register_post_type('ql_public_project', [
             'label' => __('Projetos Públicos', 'quilombo-lab'),
-            'public' => true,
-            'publicly_queryable' => true,
+            'public' => false, // Desabilitado para evitar conflito com páginas amigáveis
+            'publicly_queryable' => false,
             'show_ui' => false, // Não mostrar no admin (gerenciado pelo plugin)
             'show_in_menu' => false,
-            'query_var' => true,
-            'rewrite' => ['slug' => 'projeto'],
+            'query_var' => false,
+            'rewrite' => false, // Desabilitar rewrite para evitar conflitos
             'capability_type' => 'post',
-            'has_archive' => true,
+            'has_archive' => false,
             'hierarchical' => false,
             'menu_position' => null,
             'supports' => ['title', 'editor', 'thumbnail', 'excerpt'],
@@ -84,6 +84,10 @@ class QL_Public {
      * Enfileirar scripts e estilos públicos
      */
     public function enqueue_scripts() {
+        if (!$this->should_load_assets()) {
+            return;
+        }
+
         // CSS público
         wp_enqueue_style(
             'ql-public-css',
@@ -102,9 +106,15 @@ class QL_Public {
         );
         
         // Localizar script com dados AJAX
-        wp_localize_script('ql-public-js', 'ql_public_ajax', [
+        wp_localize_script('ql-public-js', 'ql_public', [
+            'rest_url' => home_url('/wp-json/quilombo-lab/v1/'),
+            'rest_nonce' => wp_create_nonce('wp_rest'),
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('ql_public_nonce'),
+            'current_project' => null,
+            'current_board' => null,
+            'project_base_url' => home_url('/lab/projeto/%slug%/'),
+            'auto_refresh' => false,
             'strings' => [
                 'loading' => __('Carregando...', 'quilombo-lab'),
                 'error' => __('Erro ao carregar dados', 'quilombo-lab'),
@@ -123,6 +133,29 @@ class QL_Public {
     }
     
     /**
+     * Verificar se assets públicos devem ser carregados
+     */
+    private function should_load_assets() {
+        // Carregar se query vars de projeto/board estão presentes
+        if (get_query_var('ql_project_slug') || get_query_var('ql_board_id')) {
+            return true;
+        }
+
+        // Carregar se o post atual contém shortcodes QL
+        global $post;
+        if ($post && is_a($post, 'WP_Post')) {
+            $ql_shortcodes = ['ql_dashboard', 'ql_projetos', 'ql_projeto', 'ql_board', 'ql_meus_projetos', 'ql_estatisticas'];
+            foreach ($ql_shortcodes as $shortcode) {
+                if (has_shortcode($post->post_content, $shortcode)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Filtrar conteúdo de projetos
      */
     public function filter_project_content($content) {
@@ -135,14 +168,14 @@ class QL_Public {
         
         // Verificar se é uma página de projeto
         $project_slug = get_query_var('ql_project_slug');
-        $board_slug = get_query_var('ql_board_slug');
-        
+        $board_id = get_query_var('ql_board_id');
+
         if ($project_slug) {
             return $this->render_project_public_page($project_slug) . $content;
         }
-        
-        if ($board_slug) {
-            return $this->render_board_public_page($board_slug) . $content;
+
+        if ($board_id) {
+            return $this->render_board_public_page(intval($board_id)) . $content;
         }
         
         return $content;
@@ -170,40 +203,38 @@ class QL_Public {
         ob_start();
         ?>
         <div class="ql-public-project">
-            <div class="ql-project-header">
-                <h1 class="ql-project-title"><?php echo esc_html($project['name']); ?></h1>
-                
+            <div class="ql-public-project-header">
+                <h1 class="ql-public-project-title"><?php echo esc_html($project['name']); ?></h1>
+
                 <?php if ($project['description']): ?>
-                    <div class="ql-project-description">
+                    <div class="ql-public-project-description">
                         <?php echo wp_kses_post($project['description']); ?>
                     </div>
                 <?php endif; ?>
-                
-                <div class="ql-project-meta">
-                    <div class="ql-meta-item">
+
+                <div class="ql-public-project-meta">
+                    <span class="ql-meta-item">
                         <i class="fas fa-calendar-alt"></i>
-                        <span><?php echo sprintf(__('Criado em %s', 'quilombo-lab'), date_i18n('d/m/Y', strtotime($project['created_at']))); ?></span>
-                    </div>
-                    
+                        <?php echo sprintf(__('Criado em %s', 'quilombo-lab'), date_i18n('d/m/Y', strtotime($project['created_at']))); ?>
+                    </span>
+
                     <?php if ($project['start_date']): ?>
-                        <div class="ql-meta-item">
+                        <span class="ql-meta-item">
                             <i class="fas fa-play"></i>
-                            <span><?php echo sprintf(__('Início: %s', 'quilombo-lab'), date_i18n('d/m/Y', strtotime($project['start_date']))); ?></span>
-                        </div>
-                    <?php endif; ?>
-                    
-                    <div class="ql-meta-item">
-                        <span class="ql-status-badge ql-status-<?php echo esc_attr($project['status']); ?>">
-                            <?php echo esc_html(ucfirst($project['status'])); ?>
+                            <?php echo sprintf(__('Início: %s', 'quilombo-lab'), date_i18n('d/m/Y', strtotime($project['start_date']))); ?>
                         </span>
-                    </div>
+                    <?php endif; ?>
+
+                    <span class="ql-status-badge status-<?php echo esc_attr($project['status']); ?>">
+                        <?php echo esc_html(ucfirst($project['status'])); ?>
+                    </span>
                 </div>
             </div>
-            
+
             <div class="ql-project-stats">
                 <?php echo $this->render_project_stats($project['id']); ?>
             </div>
-            
+
             <div class="ql-project-boards">
                 <h2><?php _e('Quadros do Projeto', 'quilombo-lab'); ?></h2>
                 <?php echo $this->render_public_boards($project['id']); ?>
@@ -276,30 +307,32 @@ class QL_Public {
         
         ob_start();
         ?>
-        <div class="ql-boards-grid">
+        <div class="ql-public-projects-grid">
             <?php foreach ($boards as $board): ?>
-                <div class="ql-board-card">
-                    <div class="ql-board-header">
-                        <h3><?php echo esc_html($board['name']); ?></h3>
+                <div class="ql-public-project-card">
+                    <div class="ql-public-project-card-header">
+                        <h3 class="ql-public-project-card-title"><?php echo esc_html($board['name']); ?></h3>
                         <?php if ($board['description']): ?>
-                            <p><?php echo esc_html($board['description']); ?></p>
+                            <p class="ql-public-project-card-description"><?php echo esc_html($board['description']); ?></p>
                         <?php endif; ?>
                     </div>
-                    
-                    <div class="ql-board-stats">
-                        <span class="ql-stat-item">
-                            <i class="fas fa-columns"></i>
-                            <?php echo count($board['columns']); ?> <?php _e('colunas', 'quilombo-lab'); ?>
-                        </span>
-                        <span class="ql-stat-item">
-                            <i class="fas fa-tasks"></i>
-                            <?php echo $board['tasks_count']; ?> <?php _e('tarefas', 'quilombo-lab'); ?>
-                        </span>
+
+                    <div class="ql-public-project-card-body">
+                        <div class="ql-public-project-card-stats">
+                            <div class="ql-public-stat">
+                                <p class="ql-public-stat-number"><?php echo count($board['columns']); ?></p>
+                                <p class="ql-public-stat-label"><?php _e('Colunas', 'quilombo-lab'); ?></p>
+                            </div>
+                            <div class="ql-public-stat">
+                                <p class="ql-public-stat-number"><?php echo intval($board['tasks_count']); ?></p>
+                                <p class="ql-public-stat-label"><?php _e('Tarefas', 'quilombo-lab'); ?></p>
+                            </div>
+                        </div>
                     </div>
-                    
-                    <div class="ql-board-actions">
-                        <a href="<?php echo esc_url(home_url("/lab/quadro/{$board['slug']}")); ?>" 
-                           class="ql-btn ql-btn-primary">
+
+                    <div class="ql-public-project-card-footer">
+                        <a href="<?php echo esc_url(home_url("/lab/quadro/{$board['id']}")); ?>"
+                           class="ql-public-btn">
                             <i class="fas fa-eye"></i>
                             <?php _e('Ver Quadro', 'quilombo-lab'); ?>
                         </a>
@@ -314,29 +347,29 @@ class QL_Public {
     /**
      * Renderizar página pública do quadro
      */
-    private function render_board_public_page($board_slug) {
+    private function render_board_public_page($board_id) {
         if (!class_exists('QL_Board')) {
             return '<p class="ql-error">' . __('Funcionalidade não disponível', 'quilombo-lab') . '</p>';
         }
-        
+
         global $wpdb;
-        
+
         $board = $wpdb->get_row($wpdb->prepare(
-            "SELECT b.*, p.name as project_name, p.slug as project_slug 
+            "SELECT b.*, p.name as project_name, p.slug as project_slug
              FROM {$wpdb->prefix}ql_boards b
              JOIN {$wpdb->prefix}ql_projects p ON b.project_id = p.id
-             WHERE b.slug = %s AND p.visibility = 'public'",
-            $board_slug
+             WHERE b.id = %d AND p.visibility = 'public'",
+            $board_id
         ), ARRAY_A);
-        
+
         if (!$board) {
             return '<p class="ql-error">' . __('Quadro não encontrado ou não é público', 'quilombo-lab') . '</p>';
         }
-        
+
         ob_start();
         ?>
-        <div class="ql-public-board">
-            <div class="ql-board-header">
+        <div class="ql-public-kanban">
+            <div class="ql-public-board-header">
                 <nav class="ql-breadcrumb">
                     <a href="<?php echo esc_url(home_url("/lab/projeto/{$board['project_slug']}")); ?>">
                         <?php echo esc_html($board['project_name']); ?>
@@ -344,17 +377,17 @@ class QL_Public {
                     <span class="separator">›</span>
                     <span class="current"><?php echo esc_html($board['name']); ?></span>
                 </nav>
-                
-                <h1 class="ql-board-title"><?php echo esc_html($board['name']); ?></h1>
-                
+
+                <h1 class="ql-public-board-title"><?php echo esc_html($board['name']); ?></h1>
+
                 <?php if ($board['description']): ?>
-                    <div class="ql-board-description">
+                    <div class="ql-public-board-description">
                         <?php echo wp_kses_post($board['description']); ?>
                     </div>
                 <?php endif; ?>
             </div>
-            
-            <div class="ql-kanban-board" id="ql-public-kanban">
+
+            <div class="ql-public-kanban-board" id="ql-public-kanban">
                 <?php echo $this->render_kanban_columns($board['id']); ?>
             </div>
         </div>
@@ -381,41 +414,41 @@ class QL_Public {
         
         foreach ($columns as $column) {
             ?>
-            <div class="ql-kanban-column" data-column-id="<?php echo $column['id']; ?>">
-                <div class="ql-column-header" style="background-color: <?php echo esc_attr($column['color']); ?>;">
-                    <h3 class="ql-column-title">
+            <div class="ql-public-kanban-column" data-column-id="<?php echo $column['id']; ?>">
+                <div class="ql-public-column-header" style="background-color: <?php echo esc_attr($column['color']); ?>;">
+                    <h3 class="ql-public-column-title">
                         <?php echo esc_html($column['name']); ?>
-                        <span class="ql-column-count"><?php echo count($column['tasks']); ?></span>
                     </h3>
+                    <span class="ql-public-column-count"><?php echo count($column['tasks']); ?></span>
                 </div>
-                
-                <div class="ql-tasks-list">
+
+                <div class="ql-public-tasks-list">
                     <?php foreach ($column['tasks'] as $task): ?>
-                        <div class="ql-kanban-task" data-task-id="<?php echo $task['id']; ?>">
-                            <div class="ql-task-title"><?php echo esc_html($task['title']); ?></div>
-                            
+                        <div class="ql-public-task" data-task-id="<?php echo $task['id']; ?>">
+                            <div class="ql-public-task-title"><?php echo esc_html($task['title']); ?></div>
+
                             <?php if ($task['description']): ?>
-                                <div class="ql-task-description">
+                                <div class="ql-public-task-description">
                                     <?php echo wp_trim_words(strip_tags($task['description']), 20); ?>
                                 </div>
                             <?php endif; ?>
-                            
-                            <div class="ql-task-meta">
-                                <div class="ql-task-priority priority-<?php echo $task['priority']; ?>">
+
+                            <div class="ql-public-task-meta">
+                                <div class="ql-public-task-priority priority-<?php echo esc_attr($task['priority']); ?>">
                                     <?php echo $this->get_priority_label($task['priority']); ?>
                                 </div>
-                                
-                                <?php if ($task['assigned_user_name']): ?>
-                                    <div class="ql-task-assignee">
-                                        <span class="ql-task-avatar">
-                                            <?php echo substr($task['assigned_user_name'], 0, 1); ?>
+
+                                <?php if (!empty($task['assigned_user_name'])): ?>
+                                    <div class="ql-public-task-assignee">
+                                        <span class="ql-public-task-avatar">
+                                            <?php echo esc_html(mb_substr($task['assigned_user_name'], 0, 1)); ?>
                                         </span>
                                         <span class="ql-assignee-name"><?php echo esc_html($task['assigned_user_name']); ?></span>
                                     </div>
                                 <?php endif; ?>
-                                
-                                <?php if ($task['due_date']): ?>
-                                    <div class="ql-task-due-date <?php echo (strtotime($task['due_date']) < time()) ? 'overdue' : ''; ?>">
+
+                                <?php if (!empty($task['due_date'])): ?>
+                                    <div class="ql-public-task-due-date <?php echo (strtotime($task['due_date']) < time()) ? 'overdue' : ''; ?>">
                                         <i class="fas fa-calendar"></i>
                                         <?php echo date_i18n('d/m', strtotime($task['due_date'])); ?>
                                     </div>
@@ -450,9 +483,9 @@ class QL_Public {
      */
     public function handle_project_redirects() {
         $project_slug = get_query_var('ql_project_slug');
-        $board_slug = get_query_var('ql_board_slug');
-        
-        if ($project_slug || $board_slug) {
+        $board_id = get_query_var('ql_board_id');
+
+        if ($project_slug || $board_id) {
             // Verificar se existe uma página "laboratorio" 
             $laboratorio_page = get_page_by_path('laboratorio');
             

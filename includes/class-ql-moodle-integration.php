@@ -38,15 +38,33 @@ class QL_Moodle_Integration {
         add_action('wp_ajax_ql_sync_moodle_courses', [$this, 'ajax_sync_courses']);
         add_action('wp_ajax_ql_test_moodle_connection', [$this, 'ajax_test_connection']);
         add_action('wp_ajax_ql_sync_all_project_members', [$this, 'ajax_sync_all_project_members']);
+        add_action('wp_ajax_ql_get_all_groups', [$this, 'ajax_get_all_groups']);
+        add_action('wp_ajax_ql_get_all_groupings', [$this, 'ajax_get_all_groupings']);
+        add_action('wp_ajax_ql_detect_moodle_roles', [$this, 'ajax_detect_moodle_roles']);
+        add_action('wp_ajax_ql_sync_project_roles', [$this, 'ajax_sync_project_roles']);
+        add_action('wp_ajax_ql_import_course_roles', [$this, 'ajax_import_course_roles']);
+        add_action('wp_ajax_ql_import_all_course_roles', [$this, 'ajax_import_all_course_roles']);
+        add_action('wp_ajax_ql_update_active_roles', [$this, 'ajax_update_active_roles']);
         
         // Cron job para sincronização automática
         add_action('ql_moodle_sync', [$this, 'scheduled_sync']);
+        
+        // Hook para sincronização automática de instâncias quando configurações são atualizadas
+        add_action('ql_moodle_settings_updated', [$this, 'sync_instances_from_moodle']);
         
         // Hook para sincronização de membros com delay
         add_action('ql_sync_project_members_delayed', [$this, 'sync_project_members_delayed_handler'], 10, 2);
         
         // Hook para quando configurações do Moodle são atualizadas
         add_action('update_option_quilombo_laboratorio_settings', [$this, 'on_settings_updated'], 10, 2);
+        
+        // Hooks desabilitados - círculos/núcleos são importados do Moodle, não criados pelo plugin
+        // add_action('ql_circle_created', [$this, 'on_circle_created'], 10, 2);
+        // add_action('ql_nucleus_created', [$this, 'on_nucleus_created'], 10, 2);
+        
+        // Hooks para sincronização de papéis organizativos
+        add_action('ql_organizational_role_assigned', [$this, 'on_organizational_role_assigned'], 10, 4);
+        add_action('ql_organizational_role_removed', [$this, 'on_organizational_role_removed'], 10, 4);
     }
     
     public function init() {
@@ -56,6 +74,11 @@ class QL_Moodle_Integration {
         // Registrar cron job se não existir
         if (!wp_next_scheduled('ql_moodle_sync')) {
             wp_schedule_event(time(), 'daily', 'ql_moodle_sync');
+        }
+        
+        // Detectar papéis no Moodle se ainda não foi feito
+        if (empty(get_option('ql_moodle_roles_config', []))) {
+            $this->detect_moodle_organizational_roles();
         }
         
         // Adicionar menu admin se necessário
@@ -68,9 +91,15 @@ class QL_Moodle_Integration {
     private function load_settings() {
         $moodle_settings = QL_Config::get_moodle_settings();
         
-        $this->moodle_url = rtrim($moodle_settings['url'], '/');
-        $this->moodle_token = $moodle_settings['token'];
-        $this->api_endpoint = $this->moodle_url . '/webservice/rest/server.php';
+        $this->moodle_url = rtrim($moodle_settings['url'] ?: '', '/');
+        $this->moodle_token = $moodle_settings['token'] ?: '';
+        
+        if (!empty($this->moodle_url)) {
+            $this->api_endpoint = $this->moodle_url . '/webservice/rest/server.php';
+        } else {
+            $this->api_endpoint = '';
+            error_log('QL Moodle Integration: URL do Moodle não configurada');
+        }
     }
     
     /**
@@ -444,10 +473,56 @@ class QL_Moodle_Integration {
     }
     
     /**
+     * Verificar se o Moodle está configurado
+     */
+    public function is_moodle_configured() {
+        return !empty($this->moodle_url) && !empty($this->moodle_token);
+    }
+
+    /**
+     * Fazer requisição à API do Moodle (método auxiliar)
+     * Recebe parâmetros completos incluindo wsfunction e wstoken
+     */
+    private function make_request($params) {
+        if (empty($this->api_endpoint)) {
+            throw new Exception('Endpoint da API Moodle não configurado');
+        }
+
+        $response = wp_remote_post($this->api_endpoint, [
+            'body' => $params,
+            'timeout' => 30,
+            'headers' => [
+                'User-Agent' => 'Quilombo-Laboratorio-Plugin/1.0'
+            ]
+        ]);
+
+        if (is_wp_error($response)) {
+            throw new Exception('Erro na requisição: ' . $response->get_error_message());
+        }
+
+        $http_code = wp_remote_retrieve_response_code($response);
+        $body = wp_remote_retrieve_body($response);
+
+        if ($http_code !== 200) {
+            throw new Exception('HTTP Error ' . $http_code);
+        }
+
+        $data = json_decode($body, true);
+
+        // Verificar se houve erro da API Moodle
+        if (isset($data['exception']) || isset($data['errorcode'])) {
+            $error_msg = $data['message'] ?? $data['exception'] ?? 'Erro desconhecido da API Moodle';
+            throw new Exception('Erro da API Moodle: ' . $error_msg);
+        }
+
+        return $data;
+    }
+
+    /**
      * Testar conexão com Moodle
      */
     public function test_connection() {
-        if (empty($this->moodle_url) || empty($this->moodle_token)) {
+        if (!$this->is_moodle_configured()) {
             return [
                 'success' => false,
                 'message' => 'URL do Moodle ou token não configurados. Verifique as configurações do plugin.'
@@ -473,11 +548,80 @@ class QL_Moodle_Integration {
             }
             
         } catch (Exception $e) {
+            $error_message = $e->getMessage();
+            
+            // Se é erro HTTP 500, tentar diagnóstico e correção automática
+            if (strpos($error_message, 'HTTP Error 500') !== false || strpos($error_message, 'Erro interno do servidor Moodle') !== false) {
+                $diagnostic = $this->diagnose_moodle_issue();
+                return [
+                    'success' => false,
+                    'message' => 'Erro no servidor Moodle: ' . $error_message . '\n\nDiagnóstico: ' . $diagnostic['message'],
+                    'diagnostic' => $diagnostic
+                ];
+            }
+            
             return [
                 'success' => false,
-                'message' => 'Erro ao conectar: ' . $e->getMessage()
+                'message' => 'Erro ao conectar: ' . $error_message
             ];
         }
+    }
+    
+    /**
+     * Diagnosticar problemas comuns do Moodle
+     */
+    private function diagnose_moodle_issue() {
+        $moodle_path = str_replace('/webservice/rest/server.php', '', $this->api_endpoint);
+        $moodle_path = str_replace('http://localhost', '/var/www/html', $moodle_path);
+        
+        $issues = [];
+        $solutions = [];
+        
+        // Verificar se existe diretório de cache
+        $cache_path = $moodle_path . '/cache/classes';
+        if (!is_dir($cache_path)) {
+            $issues[] = 'Diretório de cache não existe';
+            $solutions[] = 'Criar diretório de cache';
+        } else {
+            // Verificar se cache está vazio ou corrompido
+            $cache_files = glob($cache_path . '/*.php');
+            if (empty($cache_files)) {
+                $issues[] = 'Cache vazio ou corrompido';
+                $solutions[] = 'Regenerar cache do Moodle';
+            }
+        }
+        
+        // Verificar arquivo de configuração
+        $config_path = $moodle_path . '/config.php';
+        if (!file_exists($config_path)) {
+            $issues[] = 'Arquivo config.php não encontrado';
+        } else {
+            $config_content = file_get_contents($config_path);
+            if (strpos($config_content, '$CFG->debug') !== false) {
+                $solutions[] = 'Modo debug ativado - verificar logs para mais detalhes';
+            }
+        }
+        
+        // Verificar logs de erro recentes
+        $error_log = '/var/log/apache2/error.log';
+        if (file_exists($error_log)) {
+            $recent_errors = shell_exec("tail -50 $error_log | grep -i moodle | grep 'Fatal error\\|PHP Error' | tail -3");
+            if (!empty($recent_errors)) {
+                $issues[] = 'Erros PHP detectados nos logs';
+                $solutions[] = 'Verificar logs: ' . trim($recent_errors);
+            }
+        }
+        
+        if (empty($issues)) {
+            $issues[] = 'Problema não identificado automaticamente';
+            $solutions[] = 'Verifique manualmente os logs do Moodle e configurações do servidor web';
+        }
+        
+        return [
+            'issues' => $issues,
+            'solutions' => $solutions,
+            'message' => implode('. ', $issues) . '. Soluções: ' . implode('; ', $solutions)
+        ];
     }
     
     /**
@@ -1103,6 +1247,240 @@ class QL_Moodle_Integration {
     }
     
     /**
+     * Buscar grupos do Moodle (de todos os cursos)
+     */
+    public function get_all_groups() {
+        if (!$this->is_moodle_configured()) {
+            throw new Exception('Moodle não configurado');
+        }
+
+        try {
+            // Primeiro, obter todos os cursos
+            $courses = $this->get_moodle_courses();
+            $all_groups = [];
+
+            foreach ($courses as $course) {
+                $course_id = is_array($course) ? ($course['id'] ?? null) : ($course->id ?? null);
+                if (!$course_id) continue;
+
+                try {
+                    $groups = $this->get_course_groups($course_id);
+                    if (!empty($groups) && is_array($groups)) {
+                        foreach ($groups as $group) {
+                            // Adicionar course_id ao grupo para referência
+                            if (is_array($group)) {
+                                $group['courseid'] = $course_id;
+                            }
+                            $all_groups[] = $group;
+                        }
+                    }
+                } catch (Exception $e) {
+                    // Log mas continua com outros cursos
+                    error_log('QL Moodle: Erro ao buscar grupos do curso ' . $course_id . ': ' . $e->getMessage());
+                }
+            }
+
+            return $all_groups;
+
+        } catch (Exception $e) {
+            error_log('QL Moodle: Erro ao buscar grupos: ' . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    /**
+     * Buscar agrupamentos do Moodle (de todos os cursos)
+     */
+    public function get_all_groupings() {
+        if (!$this->is_moodle_configured()) {
+            throw new Exception('Moodle não configurado');
+        }
+
+        try {
+            // Primeiro, obter todos os cursos
+            $courses = $this->get_moodle_courses();
+            $all_groupings = [];
+
+            foreach ($courses as $course) {
+                $course_id = is_array($course) ? ($course['id'] ?? null) : ($course->id ?? null);
+                if (!$course_id) continue;
+
+                try {
+                    $groupings = $this->get_course_groupings($course_id);
+                    if (!empty($groupings) && is_array($groupings)) {
+                        foreach ($groupings as $grouping) {
+                            // Adicionar course_id ao agrupamento para referência
+                            if (is_array($grouping)) {
+                                $grouping['courseid'] = $course_id;
+                            }
+                            $all_groupings[] = $grouping;
+                        }
+                    }
+                } catch (Exception $e) {
+                    // Log mas continua com outros cursos
+                    error_log('QL Moodle: Erro ao buscar agrupamentos do curso ' . $course_id . ': ' . $e->getMessage());
+                }
+            }
+
+            return $all_groupings;
+
+        } catch (Exception $e) {
+            error_log('QL Moodle: Erro ao buscar agrupamentos: ' . $e->getMessage());
+            throw $e;
+        }
+    }
+    
+    /**
+     * Buscar grupos de um curso específico
+     */
+    public function get_course_groups($course_id) {
+        if (!$this->is_moodle_configured()) {
+            throw new Exception('Moodle não configurado');
+        }
+        
+        try {
+            $params = [
+                'wsfunction' => 'core_group_get_course_groups',
+                'courseid' => $course_id,
+                'moodlewsrestformat' => 'json',
+                'wstoken' => $this->moodle_token
+            ];
+            
+            $response = $this->make_request($params);
+            
+            return $response ?: [];
+            
+        } catch (Exception $e) {
+            error_log('QL Moodle: Erro ao buscar grupos do curso: ' . $e->getMessage());
+            throw $e;
+        }
+    }
+    
+    /**
+     * Buscar agrupamentos de um curso específico
+     */
+    public function get_course_groupings($course_id) {
+        if (!$this->is_moodle_configured()) {
+            throw new Exception('Moodle não configurado');
+        }
+        
+        try {
+            $params = [
+                'wsfunction' => 'core_group_get_course_groupings',
+                'courseid' => $course_id,
+                'moodlewsrestformat' => 'json',
+                'wstoken' => $this->moodle_token
+            ];
+            
+            $response = $this->make_request($params);
+            
+            return $response ?: [];
+            
+        } catch (Exception $e) {
+            error_log('QL Moodle: Erro ao buscar agrupamentos do curso: ' . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    /**
+     * Buscar membros de um grupo específico
+     */
+    public function get_group_members($group_id) {
+        if (!$this->is_moodle_configured()) {
+            throw new Exception('Moodle não configurado');
+        }
+
+        try {
+            $params = [
+                'wsfunction' => 'core_group_get_group_members',
+                'groupids[0]' => $group_id,
+                'moodlewsrestformat' => 'json',
+                'wstoken' => $this->moodle_token
+            ];
+
+            $response = $this->make_request($params);
+
+            // A resposta é um array de grupos com seus membros
+            if (!empty($response) && is_array($response)) {
+                foreach ($response as $group_data) {
+                    if (isset($group_data['groupid']) && $group_data['groupid'] == $group_id) {
+                        return $group_data['userids'] ?? [];
+                    }
+                }
+            }
+
+            return [];
+
+        } catch (Exception $e) {
+            error_log('QL Moodle: Erro ao buscar membros do grupo ' . $group_id . ': ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Buscar detalhes de usuários do Moodle por IDs
+     */
+    public function get_users_by_ids($user_ids) {
+        if (!$this->is_moodle_configured() || empty($user_ids)) {
+            return [];
+        }
+
+        try {
+            $params = [
+                'wsfunction' => 'core_user_get_users_by_field',
+                'field' => 'id',
+                'moodlewsrestformat' => 'json',
+                'wstoken' => $this->moodle_token
+            ];
+
+            // Adicionar IDs de usuários
+            foreach ($user_ids as $index => $user_id) {
+                $params["values[$index]"] = $user_id;
+            }
+
+            $response = $this->make_request($params);
+
+            return is_array($response) ? $response : [];
+
+        } catch (Exception $e) {
+            error_log('QL Moodle: Erro ao buscar usuários: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * AJAX - Buscar todos os grupos
+     */
+    public function ajax_get_all_groups() {
+        if (!wp_verify_nonce($_POST['nonce'], 'ql_admin_nonce')) {
+            wp_die('Nonce inválido');
+        }
+        
+        try {
+            $groups = $this->get_all_groups();
+            wp_send_json_success(['groups' => $groups]);
+        } catch (Exception $e) {
+            wp_send_json_error(['message' => $e->getMessage()]);
+        }
+    }
+    
+    /**
+     * AJAX - Buscar todos os agrupamentos
+     */
+    public function ajax_get_all_groupings() {
+        if (!wp_verify_nonce($_POST['nonce'], 'ql_admin_nonce')) {
+            wp_die('Nonce inválido');
+        }
+        
+        try {
+            $groupings = $this->get_all_groupings();
+            wp_send_json_success(['groupings' => $groupings]);
+        } catch (Exception $e) {
+            wp_send_json_error(['message' => $e->getMessage()]);
+        }
+    }
+
+    /**
      * Extrair configurações do banco Moodle a partir das configurações da API
      */
     private function extract_moodle_db_config($moodle_settings) {
@@ -1353,6 +1731,7 @@ class QL_Moodle_Integration {
             'end_date' => !empty($course['enddate']) ? date('Y-m-d', $course['enddate']) : null,
             'priority' => $is_site_course ? 'high' : 'normal',
             'color' => $is_site_course ? '#27ae60' : $this->get_trilha_color($trilha_type),
+            'featured_image_id' => $this->get_project_featured_image($course, $is_site_course),
             'settings' => json_encode([
                 'trilha_type' => $trilha_type,
                 'moodle_course_id' => $course['id'],
@@ -1961,11 +2340,23 @@ class QL_Moodle_Integration {
      */
     public function get_course_participants($course_id) {
         try {
+            // Parâmetros completos para garantir que todos os usuários sejam retornados
+            // Formato igual ao usado em get_course_enrolled_users_with_roles()
             $response = $this->call_moodle_api('core_enrol_get_enrolled_users', [
-                'courseid' => $course_id
+                'courseid' => $course_id,
+                'withcapability' => '',         // Vazio para buscar todos (sem filtro de capability)
+                'groupid' => 0,                 // 0 = todos os grupos
+                'onlyactive' => 0,              // 0 = incluir todos, não apenas ativos
+                'userfields' => 'id,username,firstname,lastname,email',
+                'limitfrom' => 0,               // Começar do primeiro usuário
+                'limitnumber' => 0              // 0 = sem limite, retorna TODOS os usuários
             ]);
-            
+
+            $count = is_array($response) ? count($response) : 0;
+            error_log("QL Moodle: Buscando participantes do curso {$course_id} - Retornados: {$count} usuários");
+
             if (!$response || !is_array($response)) {
+                error_log("QL Moodle: Resposta vazia ou inválida para curso {$course_id}");
                 return [];
             }
             
@@ -2525,6 +2916,20 @@ class QL_Moodle_Integration {
         error_log('QL Moodle API: HTTP ' . $http_code . ' - Resposta: ' . substr($body, 0, 500));
         
         if ($http_code !== 200) {
+            // Tratamento específico para erro 500
+            if ($http_code === 500) {
+                $error_msg = 'Erro interno do servidor Moodle (HTTP 500). ';
+                $error_msg .= 'Possíveis causas: cache corrompido, problemas de configuração ou dependências faltando. ';
+                $error_msg .= 'Verifique os logs do Moodle e tente regenerar o cache.';
+                
+                // Incluir parte da resposta se houver
+                if (!empty($body) && strpos($body, 'Fatal error') !== false) {
+                    $error_msg .= ' Erro PHP detectado: ' . substr($body, 0, 200);
+                }
+                
+                throw new Exception($error_msg);
+            }
+            
             throw new Exception('HTTP Error ' . $http_code . ': ' . substr($body, 0, 200));
         }
         
@@ -2568,10 +2973,55 @@ class QL_Moodle_Integration {
         }
         
         try {
+            // Sincronização de cursos/trilhas
             $result = $this->sync_courses_from_moodle();
-            error_log('QL Moodle Sync: Sincronização automática executada com sucesso');
+            error_log('QL Moodle Sync: Sincronização de cursos executada com sucesso');
+            
+            // Sincronizar instâncias (grupos/agrupamentos)
+            $this->sync_instances_from_moodle();
+            error_log('QL Moodle Sync: Sincronização de instâncias executada');
+            
+            // Atualizar configuração de papéis ativos
+            $this->update_active_roles_configuration();
+            error_log('QL Moodle Sync: Configuração de papéis atualizada');
+            
+            // Importar papéis de todos os cursos mapeados
+            $roles_result = $this->import_all_course_roles();
+            if (!is_wp_error($roles_result)) {
+                error_log("QL Moodle Sync: Papéis importados - {$roles_result['total_imported']} importados, {$roles_result['total_skipped']} pulados");
+            }
+            
+            error_log('QL Moodle Sync: Sincronização automática completa executada com sucesso');
         } catch (Exception $e) {
             error_log('QL Moodle Sync: Erro na sincronização automática: ' . $e->getMessage());
+        }
+    }
+    
+    /**
+     * Sincronizar instâncias (grupos/agrupamentos) do Moodle
+     */
+    public function sync_instances_from_moodle() {
+        if (!class_exists('QL_Instances')) {
+            error_log('QL Moodle: Classe QL_Instances não disponível');
+            return;
+        }
+        
+        try {
+            $instances = QL_Instances::get_instance();
+            $result = $instances->import_from_moodle_groups();
+            
+            if (is_wp_error($result)) {
+                error_log('QL Moodle: Erro ao sincronizar instâncias: ' . $result->get_error_message());
+            } else {
+                error_log(sprintf(
+                    'QL Moodle: Sincronização de instâncias concluída - %d círculos, %d núcleos',
+                    $result['circles'],
+                    $result['nuclei']
+                ));
+            }
+            
+        } catch (Exception $e) {
+            error_log('QL Moodle: Erro na sincronização de instâncias: ' . $e->getMessage());
         }
     }
     
@@ -2925,6 +3375,1591 @@ class QL_Moodle_Integration {
             error_log("QL Moodle Integration: Erro ao criar projeto coletivo manual: " . $e->getMessage());
             return null;
         }
+    }
+    
+    /**
+     * Criar grupo no Moodle correspondente a um círculo
+     * Conforme modelo organizativo: Círculo = Grupo no Moodle
+     */
+    public function create_moodle_group_for_circle($circle_id, $course_id) {
+        if (empty($this->api_endpoint) || empty($this->moodle_token)) {
+            return new WP_Error('moodle_config', 'Configuração do Moodle incompleta');
+        }
+        
+        // Obter dados do círculo
+        $instances_manager = QL_Instances::get_instance();
+        $circle = $instances_manager->get_instance_by_id($circle_id);
+        
+        if (!$circle || $circle->type !== 'circulo') {
+            return new WP_Error('invalid_circle', 'Círculo não encontrado');
+        }
+        
+        try {
+            // Verificar se grupo já existe
+            $existing_group = $this->get_moodle_group_by_name($course_id, $circle->name);
+            if ($existing_group) {
+                error_log("QL Moodle: Grupo já existe no Moodle para círculo {$circle_id}");
+                return $existing_group['id'];
+            }
+            
+            // Criar grupo no Moodle
+            $group_data = [
+                'courseid' => $course_id,
+                'name' => $circle->name,
+                'description' => $circle->description ?: 'Círculo criado via QuilomboLab',
+                'descriptionformat' => 1
+            ];
+            
+            $response = $this->call_moodle_api('core_group_create_groups', [
+                'groups' => [$group_data]
+            ]);
+            
+            if (!empty($response) && is_array($response)) {
+                $group_id = $response[0]['id'];
+                error_log("QL Moodle: Grupo criado no Moodle - ID: {$group_id} para círculo: {$circle_id}");
+                
+                // Armazenar mapping circle -> group
+                $this->store_circle_group_mapping($circle_id, $course_id, $group_id);
+                
+                // Sincronizar membros do círculo para o grupo
+                $this->sync_circle_members_to_group($circle_id, $group_id);
+                
+                return $group_id;
+            }
+            
+            return new WP_Error('group_creation_failed', 'Falha ao criar grupo no Moodle');
+            
+        } catch (Exception $e) {
+            error_log("QL Moodle: Erro ao criar grupo para círculo {$circle_id}: " . $e->getMessage());
+            return new WP_Error('api_error', $e->getMessage());
+        }
+    }
+    
+    /**
+     * Criar agrupamento no Moodle correspondente a um núcleo
+     * Conforme modelo organizativo: Núcleo = Agrupamento no Moodle
+     */
+    public function create_moodle_grouping_for_nucleus($nucleus_id, $course_id) {
+        if (empty($this->api_endpoint) || empty($this->moodle_token)) {
+            return new WP_Error('moodle_config', 'Configuração do Moodle incompleta');
+        }
+        
+        // Obter dados do núcleo
+        $instances_manager = QL_Instances::get_instance();
+        $nucleus = $instances_manager->get_instance_by_id($nucleus_id);
+        
+        if (!$nucleus || $nucleus->type !== 'nucleo') {
+            return new WP_Error('invalid_nucleus', 'Núcleo não encontrado');
+        }
+        
+        try {
+            // Verificar se agrupamento já existe
+            $existing_grouping = $this->get_moodle_grouping_by_name($course_id, $nucleus->name);
+            if ($existing_grouping) {
+                error_log("QL Moodle: Agrupamento já existe no Moodle para núcleo {$nucleus_id}");
+                return $existing_grouping['id'];
+            }
+            
+            // Criar agrupamento no Moodle
+            $grouping_data = [
+                'courseid' => $course_id,
+                'name' => $nucleus->name,
+                'description' => $nucleus->description ?: 'Núcleo criado via QuilomboLab',
+                'descriptionformat' => 1
+            ];
+            
+            $response = $this->call_moodle_api('core_group_create_groupings', [
+                'groupings' => [$grouping_data]
+            ]);
+            
+            if (!empty($response) && is_array($response)) {
+                $grouping_id = $response[0]['id'];
+                error_log("QL Moodle: Agrupamento criado no Moodle - ID: {$grouping_id} para núcleo: {$nucleus_id}");
+                
+                // Armazenar mapping nucleus -> grouping
+                $this->store_nucleus_grouping_mapping($nucleus_id, $course_id, $grouping_id);
+                
+                // Adicionar grupos dos círculos filhos ao agrupamento
+                $this->sync_nucleus_circles_to_grouping($nucleus_id, $course_id, $grouping_id);
+                
+                return $grouping_id;
+            }
+            
+            return new WP_Error('grouping_creation_failed', 'Falha ao criar agrupamento no Moodle');
+            
+        } catch (Exception $e) {
+            error_log("QL Moodle: Erro ao criar agrupamento para núcleo {$nucleus_id}: " . $e->getMessage());
+            return new WP_Error('api_error', $e->getMessage());
+        }
+    }
+    
+    /**
+     * Verificar se grupo existe no Moodle pelo nome
+     */
+    private function get_moodle_group_by_name($course_id, $name) {
+        try {
+            $groups = $this->call_moodle_api('core_group_get_course_groups', [
+                'courseid' => $course_id
+            ]);
+            
+            foreach ($groups as $group) {
+                if ($group['name'] === $name) {
+                    return $group;
+                }
+            }
+            
+            return null;
+            
+        } catch (Exception $e) {
+            error_log("QL Moodle: Erro ao buscar grupo por nome: " . $e->getMessage());
+            return null;
+        }
+    }
+    
+    /**
+     * Verificar se agrupamento existe no Moodle pelo nome
+     */
+    private function get_moodle_grouping_by_name($course_id, $name) {
+        try {
+            $groupings = $this->call_moodle_api('core_group_get_course_groupings', [
+                'courseid' => $course_id
+            ]);
+            
+            foreach ($groupings as $grouping) {
+                if ($grouping['name'] === $name) {
+                    return $grouping;
+                }
+            }
+            
+            return null;
+            
+        } catch (Exception $e) {
+            error_log("QL Moodle: Erro ao buscar agrupamento por nome: " . $e->getMessage());
+            return null;
+        }
+    }
+    
+    /**
+     * Sincronizar membros do círculo para grupo do Moodle
+     */
+    private function sync_circle_members_to_group($circle_id, $group_id) {
+        try {
+            $instances_manager = QL_Instances::get_instance();
+            $members = $instances_manager->get_instance_members($circle_id);
+            
+            foreach ($members as $member) {
+                // Buscar usuário no Moodle pelo email
+                $moodle_user = $this->get_moodle_user_by_email($member->user_email);
+                
+                if ($moodle_user) {
+                    // Adicionar usuário ao grupo
+                    $this->add_user_to_moodle_group($moodle_user['id'], $group_id);
+                }
+            }
+            
+        } catch (Exception $e) {
+            error_log("QL Moodle: Erro ao sincronizar membros do círculo {$circle_id}: " . $e->getMessage());
+        }
+    }
+    
+    /**
+     * Sincronizar círculos filhos de um núcleo para agrupamento
+     */
+    private function sync_nucleus_circles_to_grouping($nucleus_id, $course_id, $grouping_id) {
+        try {
+            // Buscar círculos filhos do núcleo diretamente no banco
+            $child_circles = $this->get_nucleus_child_circles($nucleus_id);
+            
+            foreach ($child_circles as $circle) {
+                // Verificar se há grupo correspondente no Moodle para este círculo
+                $group_mapping = $this->get_circle_group_mapping($circle->id, $course_id);
+                
+                if ($group_mapping) {
+                    // Adicionar grupo ao agrupamento
+                    $this->add_group_to_grouping($group_mapping['moodle_object_id'], $grouping_id);
+                } else {
+                    // Criar grupo se não existir
+                    $group_id = $this->create_moodle_group_for_circle($circle->id, $course_id);
+                    if (!is_wp_error($group_id)) {
+                        $this->add_group_to_grouping($group_id, $grouping_id);
+                    }
+                }
+            }
+            
+        } catch (Exception $e) {
+            error_log("QL Moodle: Erro ao sincronizar círculos do núcleo {$nucleus_id}: " . $e->getMessage());
+        }
+    }
+    
+    /**
+     * Obter círculos filhos de um núcleo
+     */
+    private function get_nucleus_child_circles($nucleus_id) {
+        global $wpdb;
+        
+        $relationships_table = $wpdb->prefix . 'ql_instance_relationships';
+        $instances_table = $wpdb->prefix . 'ql_instances';
+        
+        return $wpdb->get_results($wpdb->prepare(
+            "SELECT i.* FROM $instances_table i 
+             JOIN $relationships_table r ON i.id = r.child_instance_id 
+             WHERE r.parent_instance_id = %d 
+             AND i.type = 'circulo' 
+             AND i.status IN ('active', 'forming')",
+            $nucleus_id
+        ));
+    }
+    
+    /**
+     * Buscar usuário no Moodle pelo email
+     */
+    private function get_moodle_user_by_email($email) {
+        try {
+            $response = $this->call_moodle_api('core_user_get_users', [
+                'criteria' => [
+                    [
+                        'key' => 'email',
+                        'value' => $email
+                    ]
+                ]
+            ]);
+            
+            if (!empty($response['users'])) {
+                return $response['users'][0];
+            }
+            
+            return null;
+            
+        } catch (Exception $e) {
+            error_log("QL Moodle: Erro ao buscar usuário por email {$email}: " . $e->getMessage());
+            return null;
+        }
+    }
+    
+    /**
+     * Adicionar usuário a grupo no Moodle
+     */
+    private function add_user_to_moodle_group($user_id, $group_id) {
+        try {
+            return $this->call_moodle_api('core_group_add_group_members', [
+                'members' => [
+                    [
+                        'groupid' => $group_id,
+                        'userid' => $user_id
+                    ]
+                ]
+            ]);
+            
+        } catch (Exception $e) {
+            error_log("QL Moodle: Erro ao adicionar usuário {$user_id} ao grupo {$group_id}: " . $e->getMessage());
+            return false;
+        }
+    }
+    
+    /**
+     * Adicionar grupo a agrupamento no Moodle
+     */
+    private function add_group_to_grouping($group_id, $grouping_id) {
+        try {
+            return $this->call_moodle_api('core_group_assign_grouping', [
+                'assignments' => [
+                    [
+                        'groupingid' => $grouping_id,
+                        'groupid' => $group_id
+                    ]
+                ]
+            ]);
+            
+        } catch (Exception $e) {
+            error_log("QL Moodle: Erro ao adicionar grupo {$group_id} ao agrupamento {$grouping_id}: " . $e->getMessage());
+            return false;
+        }
+    }
+    
+    /**
+     * Armazenar mapping círculo -> grupo
+     */
+    private function store_circle_group_mapping($circle_id, $course_id, $group_id) {
+        global $wpdb;
+        
+        $table_name = $wpdb->prefix . 'ql_moodle_mappings';
+        
+        // Criar tabela se não existir
+        $this->maybe_create_mappings_table();
+        
+        return $wpdb->replace(
+            $table_name,
+            [
+                'ql_instance_id' => $circle_id,
+                'ql_instance_type' => 'circulo',
+                'moodle_course_id' => $course_id,
+                'moodle_object_id' => $group_id,
+                'moodle_object_type' => 'group',
+                'created_at' => current_time('mysql')
+            ],
+            ['%d', '%s', '%d', '%d', '%s', '%s']
+        );
+    }
+    
+    /**
+     * Armazenar mapping núcleo -> agrupamento
+     */
+    private function store_nucleus_grouping_mapping($nucleus_id, $course_id, $grouping_id) {
+        global $wpdb;
+        
+        $table_name = $wpdb->prefix . 'ql_moodle_mappings';
+        
+        // Criar tabela se não existir
+        $this->maybe_create_mappings_table();
+        
+        return $wpdb->replace(
+            $table_name,
+            [
+                'ql_instance_id' => $nucleus_id,
+                'ql_instance_type' => 'nucleo',
+                'moodle_course_id' => $course_id,
+                'moodle_object_id' => $grouping_id,
+                'moodle_object_type' => 'grouping',
+                'created_at' => current_time('mysql')
+            ],
+            ['%d', '%s', '%d', '%d', '%s', '%s']
+        );
+    }
+    
+    /**
+     * Obter mapping círculo -> grupo
+     */
+    private function get_circle_group_mapping($circle_id, $course_id) {
+        global $wpdb;
+        
+        $table_name = $wpdb->prefix . 'ql_moodle_mappings';
+        
+        return $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM $table_name 
+             WHERE ql_instance_id = %d 
+             AND ql_instance_type = 'circulo' 
+             AND moodle_course_id = %d 
+             AND moodle_object_type = 'group'",
+            $circle_id, $course_id
+        ), ARRAY_A);
+    }
+    
+    /**
+     * Criar tabela para mapeamentos Moodle se não existir
+     */
+    private function maybe_create_mappings_table() {
+        global $wpdb;
+        
+        $table_name = $wpdb->prefix . 'ql_moodle_mappings';
+        
+        if ($wpdb->get_var("SHOW TABLES LIKE '$table_name'") === $table_name) {
+            return; // Tabela já existe
+        }
+        
+        require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+        $charset_collate = $wpdb->get_charset_collate();
+        
+        $sql = "CREATE TABLE $table_name (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            ql_instance_id bigint(20) NOT NULL,
+            ql_instance_type varchar(50) NOT NULL,
+            moodle_course_id bigint(20) NOT NULL,
+            moodle_object_id bigint(20) NOT NULL,
+            moodle_object_type varchar(50) NOT NULL,
+            created_at timestamp DEFAULT CURRENT_TIMESTAMP,
+            updated_at timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE KEY mapping_unique (ql_instance_id, ql_instance_type, moodle_course_id, moodle_object_type),
+            KEY ql_instance (ql_instance_id, ql_instance_type),
+            KEY moodle_object (moodle_course_id, moodle_object_id, moodle_object_type)
+        ) $charset_collate;";
+        
+        dbDelta($sql);
+        
+        error_log("QL Moodle: Tabela de mapeamentos criada: $table_name");
+    }
+    
+    /**
+     * AJAX - Criar grupo no Moodle para círculo
+     */
+    public function ajax_create_group_for_circle() {
+        if (!wp_verify_nonce($_POST['nonce'], 'ql_admin_nonce')) {
+            wp_die('Nonce inválido');
+        }
+        
+        if (!current_user_can('manage_options')) {
+            wp_die('Permissões insuficientes');
+        }
+        
+        $circle_id = intval($_POST['circle_id'] ?? 0);
+        $course_id = intval($_POST['course_id'] ?? 0);
+        
+        if (!$circle_id || !$course_id) {
+            wp_send_json_error('IDs inválidos');
+        }
+        
+        $result = $this->create_moodle_group_for_circle($circle_id, $course_id);
+        
+        if (is_wp_error($result)) {
+            wp_send_json_error($result->get_error_message());
+        } else {
+            wp_send_json_success([
+                'message' => 'Grupo criado no Moodle com sucesso',
+                'group_id' => $result
+            ]);
+        }
+    }
+    
+    /**
+     * AJAX - Criar agrupamento no Moodle para núcleo
+     */
+    public function ajax_create_grouping_for_nucleus() {
+        if (!wp_verify_nonce($_POST['nonce'], 'ql_admin_nonce')) {
+            wp_die('Nonce inválido');
+        }
+        
+        if (!current_user_can('manage_options')) {
+            wp_die('Permissões insuficientes');
+        }
+        
+        $nucleus_id = intval($_POST['nucleus_id'] ?? 0);
+        $course_id = intval($_POST['course_id'] ?? 0);
+        
+        if (!$nucleus_id || !$course_id) {
+            wp_send_json_error('IDs inválidos');
+        }
+        
+        $result = $this->create_moodle_grouping_for_nucleus($nucleus_id, $course_id);
+        
+        if (is_wp_error($result)) {
+            wp_send_json_error($result->get_error_message());
+        } else {
+            wp_send_json_success([
+                'message' => 'Agrupamento criado no Moodle com sucesso',
+                'grouping_id' => $result
+            ]);
+        }
+    }
+    
+    /**
+     * Hook handler: quando um círculo é criado, criar grupo correspondente no Moodle
+     */
+    public function on_circle_created($circle_id, $data) {
+        // Só executar se houver projeto associado (trilha no Moodle)
+        if (empty($data['project_id'])) {
+            return;
+        }
+        
+        // Buscar curso Moodle correspondente ao projeto
+        global $wpdb;
+        $course_mapping = $wpdb->get_row($wpdb->prepare(
+            "SELECT moodle_course_id FROM {$wpdb->prefix}ql_project_moodle_mapping 
+             WHERE project_id = %d",
+            $data['project_id']
+        ));
+        
+        if (!$course_mapping) {
+            error_log("QL Moodle: Curso não encontrado para projeto {$data['project_id']}");
+            return;
+        }
+        
+        // Criar grupo no Moodle
+        $result = $this->create_moodle_group_for_circle($circle_id, $course_mapping->moodle_course_id);
+        
+        if (is_wp_error($result)) {
+            error_log("QL Moodle: Erro ao criar grupo para círculo {$circle_id}: " . $result->get_error_message());
+        } else {
+            error_log("QL Moodle: Grupo criado automaticamente para círculo {$circle_id} - Group ID: {$result}");
+        }
+    }
+    
+    /**
+     * Hook handler: quando um núcleo é criado, criar agrupamento correspondente no Moodle
+     */
+    public function on_nucleus_created($nucleus_id, $data) {
+        // Buscar círculos filhos que tenham projetos com trilhas Moodle
+        $child_circles = $this->get_nucleus_child_circles($nucleus_id);
+        
+        if (empty($child_circles)) {
+            error_log("QL Moodle: Núcleo {$nucleus_id} não possui círculos filhos");
+            return;
+        }
+        
+        // Obter cursos Moodle dos círculos filhos
+        $course_ids = [];
+        foreach ($child_circles as $circle) {
+            global $wpdb;
+            $course_mapping = $wpdb->get_row($wpdb->prepare(
+                "SELECT DISTINCT pm.moodle_course_id 
+                 FROM {$wpdb->prefix}ql_project_moodle_mapping pm
+                 JOIN {$wpdb->prefix}ql_projects p ON pm.project_id = p.id
+                 WHERE p.id IN (
+                     SELECT project_id FROM {$wpdb->prefix}ql_instances 
+                     WHERE id = %d AND project_id IS NOT NULL
+                 )",
+                $circle->id
+            ));
+            
+            if ($course_mapping) {
+                $course_ids[] = $course_mapping->moodle_course_id;
+            }
+        }
+        
+        // Criar agrupamentos nos cursos encontrados
+        foreach (array_unique($course_ids) as $course_id) {
+            $result = $this->create_moodle_grouping_for_nucleus($nucleus_id, $course_id);
+            
+            if (is_wp_error($result)) {
+                error_log("QL Moodle: Erro ao criar agrupamento para núcleo {$nucleus_id}: " . $result->get_error_message());
+            } else {
+                error_log("QL Moodle: Agrupamento criado automaticamente para núcleo {$nucleus_id} - Grouping ID: {$result}");
+            }
+        }
+    }
+    
+    /**
+     * Mapeamento dos papéis QL para papéis Moodle
+     * Conforme modelo organizativo
+     */
+    const ROLE_MAPPING_QL_TO_MOODLE = [
+        'participante' => 'student', // Estudante (padrão Moodle)
+        'guia' => 'teacher', // Professor (padrão Moodle)
+        'orientacao' => 'orientacao', // Papel customizado
+        'operacao' => 'operacao', // Papel customizado
+        'comunicacao' => 'comunicacao', // Papel customizado
+        'documentacao' => 'documentacao', // Papel customizado
+        'gestao' => 'gestao' // Papel customizado
+    ];
+    
+    /**
+     * Detectar quais papéis organizativos existem no Moodle
+     */
+    public function detect_moodle_organizational_roles() {
+        if (empty($this->api_endpoint) || empty($this->moodle_token)) {
+            return new WP_Error('moodle_config', 'Configuração do Moodle incompleta');
+        }
+        
+        try {
+            // Buscar todos os papéis disponíveis no Moodle
+            $moodle_roles = $this->call_moodle_api('core_role_get_all_roles');
+            
+            if (empty($moodle_roles)) {
+                return new WP_Error('no_roles', 'Nenhum papel encontrado no Moodle');
+            }
+            
+            $detected_roles = [];
+            $moodle_role_names = array_column($moodle_roles, 'shortname');
+            
+            // Verificar quais papéis QL existem no Moodle
+            foreach (self::ROLE_MAPPING_QL_TO_MOODLE as $ql_role => $moodle_role) {
+                $exists = in_array($moodle_role, $moodle_role_names);
+                $detected_roles[$ql_role] = [
+                    'exists_in_moodle' => $exists,
+                    'moodle_shortname' => $moodle_role,
+                    'moodle_role_id' => $exists ? $this->get_moodle_role_id($moodle_role, $moodle_roles) : null,
+                    'fallback_to_wp' => !$exists
+                ];
+                
+                error_log("QL Moodle Roles: Papel '{$ql_role}' -> '{$moodle_role}' " . ($exists ? 'EXISTE' : 'NÃO EXISTE') . " no Moodle");
+            }
+            
+            // Salvar configuração de papéis detectados
+            update_option('ql_moodle_roles_config', $detected_roles);
+            
+            return $detected_roles;
+            
+        } catch (Exception $e) {
+            error_log("QL Moodle Roles: Erro ao detectar papéis: " . $e->getMessage());
+            return new WP_Error('detection_failed', $e->getMessage());
+        }
+    }
+    
+    /**
+     * Obter ID do papel no Moodle pelo shortname
+     */
+    private function get_moodle_role_id($shortname, $moodle_roles) {
+        foreach ($moodle_roles as $role) {
+            if ($role['shortname'] === $shortname) {
+                return $role['id'];
+            }
+        }
+        return null;
+    }
+    
+    /**
+     * Obter configuração atual dos papéis detectados
+     */
+    public function get_roles_configuration() {
+        return get_option('ql_moodle_roles_config', []);
+    }
+    
+    /**
+     * Verificar se um papel QL está disponível no Moodle
+     */
+    public function is_role_available_in_moodle($ql_role_key) {
+        $config = $this->get_roles_configuration();
+        return isset($config[$ql_role_key]) && $config[$ql_role_key]['exists_in_moodle'];
+    }
+    
+    /**
+     * Sincronizar papel de usuário QL para Moodle em um curso específico
+     */
+    public function sync_user_role_to_moodle($user_id, $ql_role_key, $course_id, $action = 'assign') {
+        if (!$this->is_role_available_in_moodle($ql_role_key)) {
+            error_log("QL Moodle Roles: Papel '{$ql_role_key}' não disponível no Moodle, usando permissões WordPress");
+            return false; // Fallback para WordPress
+        }
+        
+        // Buscar usuário no Moodle pelo email
+        $wp_user = get_user_by('id', $user_id);
+        if (!$wp_user) {
+            return new WP_Error('user_not_found', 'Usuário WordPress não encontrado');
+        }
+        
+        $moodle_user = $this->get_moodle_user_by_email($wp_user->user_email);
+        if (!$moodle_user) {
+            return new WP_Error('moodle_user_not_found', 'Usuário não encontrado no Moodle');
+        }
+        
+        $config = $this->get_roles_configuration();
+        $moodle_role_id = $config[$ql_role_key]['moodle_role_id'];
+        
+        try {
+            if ($action === 'assign') {
+                // Atribuir papel no curso
+                $result = $this->call_moodle_api('enrol_manual_enrol_users', [
+                    'enrolments' => [
+                        [
+                            'roleid' => $moodle_role_id,
+                            'userid' => $moodle_user['id'],
+                            'courseid' => $course_id
+                        ]
+                    ]
+                ]);
+                
+                error_log("QL Moodle Roles: Papel '{$ql_role_key}' atribuído ao usuário {$user_id} no curso {$course_id}");
+                
+            } elseif ($action === 'unassign') {
+                // Remover papel do curso
+                $result = $this->call_moodle_api('enrol_manual_unenrol_users', [
+                    'enrolments' => [
+                        [
+                            'userid' => $moodle_user['id'],
+                            'courseid' => $course_id
+                        ]
+                    ]
+                ]);
+                
+                error_log("QL Moodle Roles: Papel '{$ql_role_key}' removido do usuário {$user_id} no curso {$course_id}");
+            }
+            
+            return $result;
+            
+        } catch (Exception $e) {
+            error_log("QL Moodle Roles: Erro ao sincronizar papel: " . $e->getMessage());
+            return new WP_Error('sync_failed', $e->getMessage());
+        }
+    }
+    
+    /**
+     * Sincronizar todos os papéis de um projeto para o Moodle
+     */
+    public function sync_project_roles_to_moodle($project_id) {
+        // Buscar curso Moodle correspondente ao projeto
+        global $wpdb;
+        $course_mapping = $wpdb->get_row($wpdb->prepare(
+            "SELECT moodle_course_id FROM {$wpdb->prefix}ql_project_moodle_mapping 
+             WHERE project_id = %d",
+            $project_id
+        ));
+        
+        if (!$course_mapping) {
+            error_log("QL Moodle Roles: Curso não encontrado para projeto {$project_id}");
+            return false;
+        }
+        
+        $course_id = $course_mapping->moodle_course_id;
+        
+        // Buscar todos os usuários com papéis no projeto
+        $organizational_roles = QL_Organizational_Roles::get_instance();
+        $roles_synced = 0;
+        $roles_fallback = 0;
+        
+        foreach (self::ROLE_MAPPING_QL_TO_MOODLE as $ql_role => $moodle_role) {
+            $users_with_role = $organizational_roles->get_users_with_role($ql_role, 'project', $project_id);
+            
+            foreach ($users_with_role as $user) {
+                $result = $this->sync_user_role_to_moodle($user->ID, $ql_role, $course_id, 'assign');
+                
+                if (is_wp_error($result)) {
+                    error_log("QL Moodle Roles: Erro ao sincronizar usuário {$user->ID} com papel {$ql_role}");
+                } elseif ($result === false) {
+                    $roles_fallback++; // Papel não existe no Moodle, usando WordPress
+                } else {
+                    $roles_synced++;
+                }
+            }
+        }
+        
+        error_log("QL Moodle Roles: Sincronização projeto {$project_id} - {$roles_synced} papéis sincronizados, {$roles_fallback} usando fallback WordPress");
+        
+        return [
+            'synced' => $roles_synced,
+            'fallback' => $roles_fallback
+        ];
+    }
+    
+    /**
+     * Hook para sincronizar papel quando atribuído no QL
+     */
+    public function on_organizational_role_assigned($user_id, $role_key, $context_type, $context_id) {
+        // Só sincronizar se for contexto de projeto
+        if ($context_type !== 'project') {
+            return;
+        }
+        
+        // Buscar curso Moodle correspondente ao projeto
+        global $wpdb;
+        $course_mapping = $wpdb->get_row($wpdb->prepare(
+            "SELECT moodle_course_id FROM {$wpdb->prefix}ql_project_moodle_mapping 
+             WHERE project_id = %d",
+            $context_id
+        ));
+        
+        if (!$course_mapping) {
+            error_log("QL Moodle Roles: Curso não encontrado para projeto {$context_id}");
+            return;
+        }
+        
+        $this->sync_user_role_to_moodle($user_id, $role_key, $course_mapping->moodle_course_id, 'assign');
+    }
+    
+    /**
+     * Hook para remover papel quando removido no QL
+     */
+    public function on_organizational_role_removed($user_id, $role_key, $context_type, $context_id) {
+        // Só sincronizar se for contexto de projeto
+        if ($context_type !== 'project') {
+            return;
+        }
+        
+        // Buscar curso Moodle correspondente ao projeto
+        global $wpdb;
+        $course_mapping = $wpdb->get_row($wpdb->prepare(
+            "SELECT moodle_course_id FROM {$wpdb->prefix}ql_project_moodle_mapping 
+             WHERE project_id = %d",
+            $context_id
+        ));
+        
+        if (!$course_mapping) {
+            error_log("QL Moodle Roles: Curso não encontrado para projeto {$context_id}");
+            return;
+        }
+        
+        $this->sync_user_role_to_moodle($user_id, $role_key, $course_mapping->moodle_course_id, 'unassign');
+    }
+    
+    /**
+     * AJAX - Detectar papéis organizativos no Moodle
+     */
+    public function ajax_detect_moodle_roles() {
+        if (!wp_verify_nonce($_POST['nonce'], 'ql_admin_nonce')) {
+            wp_die('Nonce inválido');
+        }
+        
+        if (!current_user_can('manage_options')) {
+            wp_die('Permissões insuficientes');
+        }
+        
+        $result = $this->detect_moodle_organizational_roles();
+        
+        if (is_wp_error($result)) {
+            wp_send_json_error($result->get_error_message());
+        } else {
+            wp_send_json_success([
+                'message' => 'Papéis detectados com sucesso',
+                'roles_config' => $result
+            ]);
+        }
+    }
+    
+    /**
+     * AJAX - Sincronizar papéis de projeto para Moodle
+     */
+    public function ajax_sync_project_roles() {
+        if (!wp_verify_nonce($_POST['nonce'], 'ql_admin_nonce')) {
+            wp_die('Nonce inválido');
+        }
+        
+        if (!current_user_can('manage_options')) {
+            wp_die('Permissões insuficientes');
+        }
+        
+        $project_id = intval($_POST['project_id'] ?? 0);
+        
+        if (!$project_id) {
+            wp_send_json_error('ID do projeto inválido');
+        }
+        
+        $result = $this->sync_project_roles_to_moodle($project_id);
+        
+        if ($result === false) {
+            wp_send_json_error('Erro na sincronização');
+        } else {
+            wp_send_json_success([
+                'message' => 'Papéis sincronizados com sucesso',
+                'synced' => $result['synced'],
+                'fallback' => $result['fallback']
+            ]);
+        }
+    }
+    
+    /**
+     * Buscar usuários e seus papéis em um curso específico do Moodle
+     */
+    public function get_course_enrolled_users_with_roles($course_id) {
+        if (empty($this->api_endpoint) || empty($this->moodle_token)) {
+            return new WP_Error('moodle_config', 'Configuração do Moodle incompleta');
+        }
+        
+        try {
+            // Buscar usuários inscritos no curso com seus papéis
+            $enrolled_users = $this->call_moodle_api('core_enrol_get_enrolled_users', [
+                'courseid' => $course_id,
+                'withcapability' => '', // Vazio para buscar todos
+                'groupid' => 0,
+                'onlyactive' => 1,
+                'userfields' => 'id,username,firstname,lastname,email',
+                'limitfrom' => 0,
+                'limitnumber' => 0
+            ]);
+            
+            if (empty($enrolled_users)) {
+                return [];
+            }
+            
+            $users_with_roles = [];
+            
+            foreach ($enrolled_users as $user) {
+                // Para cada usuário, identificar seus papéis no curso
+                $user_roles = [];
+                
+                if (isset($user['roles'])) {
+                    foreach ($user['roles'] as $role) {
+                        $user_roles[] = [
+                            'role_id' => $role['roleid'],
+                            'role_name' => $role['name'],
+                            'role_shortname' => $role['shortname']
+                        ];
+                    }
+                }
+                
+                $users_with_roles[] = [
+                    'moodle_user_id' => $user['id'],
+                    'username' => $user['username'],
+                    'firstname' => $user['firstname'],
+                    'lastname' => $user['lastname'], 
+                    'email' => $user['email'],
+                    'roles' => $user_roles
+                ];
+            }
+            
+            return $users_with_roles;
+            
+        } catch (Exception $e) {
+            error_log("QL Moodle Roles: Erro ao buscar usuários inscritos: " . $e->getMessage());
+            return new WP_Error('api_error', $e->getMessage());
+        }
+    }
+    
+    /**
+     * Importar atribuições de papéis do Moodle para um projeto específico
+     */
+    public function import_course_roles_to_project($course_id, $project_id) {
+        // Buscar usuários e papéis no curso
+        $course_users = $this->get_course_enrolled_users_with_roles($course_id);
+        
+        if (is_wp_error($course_users)) {
+            return $course_users;
+        }
+        
+        if (empty($course_users)) {
+            return ['imported' => 0, 'skipped' => 0, 'errors' => 0];
+        }
+        
+        $roles_config = $this->get_roles_configuration();
+        $organizational_roles = QL_Organizational_Roles::get_instance();
+        
+        $imported = 0;
+        $skipped = 0;
+        $errors = 0;
+        
+        foreach ($course_users as $course_user) {
+            // Buscar usuário WordPress pelo email
+            $wp_user = get_user_by('email', $course_user['email']);
+            if (!$wp_user) {
+                error_log("QL Moodle Import: Usuário WordPress não encontrado: {$course_user['email']}");
+                $skipped++;
+                continue;
+            }
+            
+            // Para cada papel do usuário no Moodle
+            foreach ($course_user['roles'] as $moodle_role) {
+                $moodle_shortname = $moodle_role['role_shortname'];
+                
+                // Encontrar papel QL correspondente
+                $ql_role = $this->get_ql_role_from_moodle_shortname($moodle_shortname);
+                
+                if (!$ql_role) {
+                    error_log("QL Moodle Import: Papel Moodle '{$moodle_shortname}' não mapeado para QL");
+                    $skipped++;
+                    continue;
+                }
+                
+                // Verificar se papel está disponível (existe no Moodle)
+                if (!$this->is_role_available_in_moodle($ql_role)) {
+                    error_log("QL Moodle Import: Papel '{$ql_role}' não está configurado como disponível");
+                    $skipped++;
+                    continue;
+                }
+                
+                // Atribuir papel no QL usando método de importação
+                $result = $organizational_roles->import_role_from_moodle(
+                    $wp_user->ID,
+                    $ql_role,
+                    'project',
+                    $project_id,
+                    [
+                        'moodle_course_id' => $course_id,
+                        'moodle_role_id' => $moodle_role['role_id'],
+                        'moodle_role_name' => $moodle_role['role_name'],
+                        'moodle_user_id' => $course_user['moodle_user_id']
+                    ]
+                );
+                
+                if (is_wp_error($result)) {
+                    error_log("QL Moodle Import: Erro ao atribuir papel {$ql_role} ao usuário {$wp_user->ID}: " . $result->get_error_message());
+                    $errors++;
+                } else {
+                    error_log("QL Moodle Import: Papel {$ql_role} importado para usuário {$wp_user->display_name} no projeto {$project_id}");
+                    $imported++;
+                }
+            }
+        }
+        
+        return [
+            'imported' => $imported,
+            'skipped' => $skipped,
+            'errors' => $errors,
+            'total_users' => count($course_users)
+        ];
+    }
+    
+    /**
+     * Mapear papel do Moodle (shortname) para papel QL
+     */
+    private function get_ql_role_from_moodle_shortname($moodle_shortname) {
+        // Inverter o mapeamento QL -> Moodle para encontrar QL <- Moodle
+        $mapping = array_flip(self::ROLE_MAPPING_QL_TO_MOODLE);
+        
+        return isset($mapping[$moodle_shortname]) ? $mapping[$moodle_shortname] : null;
+    }
+    
+    /**
+     * Importar papéis de todos os cursos para seus projetos correspondentes
+     */
+    public function import_all_course_roles() {
+        global $wpdb;
+        
+        // Buscar todos os projetos que têm cursos Moodle mapeados
+        $project_mappings = $wpdb->get_results("
+            SELECT project_id, moodle_course_id 
+            FROM {$wpdb->prefix}ql_project_moodle_mapping
+        ");
+        
+        if (empty($project_mappings)) {
+            return new WP_Error('no_mappings', 'Nenhum mapeamento projeto-curso encontrado');
+        }
+        
+        $total_imported = 0;
+        $total_skipped = 0;
+        $total_errors = 0;
+        $projects_processed = 0;
+        
+        foreach ($project_mappings as $mapping) {
+            $result = $this->import_course_roles_to_project(
+                $mapping->moodle_course_id,
+                $mapping->project_id
+            );
+            
+            if (is_wp_error($result)) {
+                error_log("QL Moodle Import: Erro no projeto {$mapping->project_id}: " . $result->get_error_message());
+                $total_errors++;
+                continue;
+            }
+            
+            $total_imported += $result['imported'];
+            $total_skipped += $result['skipped'];
+            $total_errors += $result['errors'];
+            $projects_processed++;
+            
+            error_log("QL Moodle Import: Projeto {$mapping->project_id} - {$result['imported']} importados, {$result['skipped']} pulados, {$result['errors']} erros");
+        }
+        
+        return [
+            'total_imported' => $total_imported,
+            'total_skipped' => $total_skipped,
+            'total_errors' => $total_errors,
+            'projects_processed' => $projects_processed
+        ];
+    }
+    
+    /**
+     * Verificar e atualizar configuração de papéis ativos
+     * Detecta quais papéis estão realmente sendo usados no Moodle
+     */
+    public function update_active_roles_configuration() {
+        $roles_config = $this->get_roles_configuration();
+        
+        if (empty($roles_config)) {
+            // Se não há configuração, detectar primeiro
+            $this->detect_moodle_organizational_roles();
+            $roles_config = $this->get_roles_configuration();
+        }
+        
+        global $wpdb;
+        
+        // Buscar cursos que têm projetos mapeados
+        $mapped_courses = $wpdb->get_col("
+            SELECT DISTINCT moodle_course_id 
+            FROM {$wpdb->prefix}ql_project_moodle_mapping
+        ");
+        
+        if (empty($mapped_courses)) {
+            return new WP_Error('no_courses', 'Nenhum curso mapeado encontrado');
+        }
+        
+        $active_roles_usage = [];
+        
+        // Para cada papel QL, verificar se está sendo usado nos cursos
+        foreach (self::ROLE_MAPPING_QL_TO_MOODLE as $ql_role => $moodle_shortname) {
+            $active_roles_usage[$ql_role] = [
+                'exists_in_moodle' => $roles_config[$ql_role]['exists_in_moodle'] ?? false,
+                'actively_used' => false,
+                'usage_count' => 0,
+                'courses_with_role' => []
+            ];
+            
+            // Se o papel existe no Moodle, verificar se está sendo usado
+            if ($active_roles_usage[$ql_role]['exists_in_moodle']) {
+                foreach ($mapped_courses as $course_id) {
+                    $users = $this->get_course_enrolled_users_with_roles($course_id);
+                    
+                    if (is_wp_error($users)) {
+                        continue;
+                    }
+                    
+                    $role_found_in_course = false;
+                    foreach ($users as $user) {
+                        foreach ($user['roles'] as $role) {
+                            if ($role['role_shortname'] === $moodle_shortname) {
+                                $active_roles_usage[$ql_role]['usage_count']++;
+                                if (!$role_found_in_course) {
+                                    $active_roles_usage[$ql_role]['courses_with_role'][] = $course_id;
+                                    $role_found_in_course = true;
+                                }
+                                $active_roles_usage[$ql_role]['actively_used'] = true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Atualizar configuração com dados de uso
+        foreach ($roles_config as $ql_role => &$config) {
+            if (isset($active_roles_usage[$ql_role])) {
+                $config['actively_used'] = $active_roles_usage[$ql_role]['actively_used'];
+                $config['usage_count'] = $active_roles_usage[$ql_role]['usage_count'];
+                $config['courses_with_role'] = $active_roles_usage[$ql_role]['courses_with_role'];
+            }
+        }
+        
+        // Salvar configuração atualizada
+        update_option('ql_moodle_roles_config', $roles_config);
+        
+        return $active_roles_usage;
+    }
+    
+    /**
+     * AJAX - Importar papéis do Moodle para projeto específico
+     */
+    public function ajax_import_course_roles() {
+        if (!wp_verify_nonce($_POST['nonce'], 'ql_admin_nonce')) {
+            wp_die('Nonce inválido');
+        }
+        
+        if (!current_user_can('manage_options')) {
+            wp_die('Permissões insuficientes');
+        }
+        
+        $course_id = intval($_POST['course_id'] ?? 0);
+        $project_id = intval($_POST['project_id'] ?? 0);
+        
+        if (!$course_id || !$project_id) {
+            wp_send_json_error('IDs inválidos');
+        }
+        
+        $result = $this->import_course_roles_to_project($course_id, $project_id);
+        
+        if (is_wp_error($result)) {
+            wp_send_json_error($result->get_error_message());
+        } else {
+            wp_send_json_success([
+                'message' => 'Papéis importados com sucesso',
+                'imported' => $result['imported'],
+                'skipped' => $result['skipped'],
+                'errors' => $result['errors'],
+                'total_users' => $result['total_users']
+            ]);
+        }
+    }
+    
+    /**
+     * AJAX - Importar papéis de todos os cursos
+     */
+    public function ajax_import_all_course_roles() {
+        if (!wp_verify_nonce($_POST['nonce'], 'ql_admin_nonce')) {
+            wp_die('Nonce inválido');
+        }
+        
+        if (!current_user_can('manage_options')) {
+            wp_die('Permissões insuficientes');
+        }
+        
+        $result = $this->import_all_course_roles();
+        
+        if (is_wp_error($result)) {
+            wp_send_json_error($result->get_error_message());
+        } else {
+            wp_send_json_success([
+                'message' => 'Importação completa realizada',
+                'total_imported' => $result['total_imported'],
+                'total_skipped' => $result['total_skipped'], 
+                'total_errors' => $result['total_errors'],
+                'projects_processed' => $result['projects_processed']
+            ]);
+        }
+    }
+    
+    /**
+     * AJAX - Atualizar configuração de papéis ativos
+     */
+    public function ajax_update_active_roles() {
+        if (!wp_verify_nonce($_POST['nonce'], 'ql_admin_nonce')) {
+            wp_die('Nonce inválido');
+        }
+        
+        if (!current_user_can('manage_options')) {
+            wp_die('Permissões insuficientes');
+        }
+        
+        $result = $this->update_active_roles_configuration();
+        
+        if (is_wp_error($result)) {
+            wp_send_json_error($result->get_error_message());
+        } else {
+            wp_send_json_success([
+                'message' => 'Configuração de papéis atualizada',
+                'active_roles' => $result
+            ]);
+        }
+    }
+    
+    /**
+     * Obter imagem em destaque para o projeto baseado no curso Moodle
+     */
+    private function get_project_featured_image($course, $is_site_course = false) {
+        // Se é projeto do coletivo (trilha ID 1), baixar logo do site Moodle
+        if ($is_site_course) {
+            return $this->get_moodle_site_logo();
+        }
+        
+        // Para outras trilhas, tentar obter imagem do curso
+        return $this->get_moodle_course_image($course);
+    }
+    
+    /**
+     * Obter logo do site Moodle e importar para WordPress
+     */
+    private function get_moodle_site_logo() {
+        // Verificar se já foi baixado anteriormente
+        $cached_logo_id = get_transient('ql_moodle_site_logo_id');
+        if ($cached_logo_id && wp_get_attachment_url($cached_logo_id)) {
+            return $cached_logo_id;
+        }
+        
+        try {
+            // Tentar baixar via API primeiro
+            $logo_id = $this->download_moodle_logo_via_api();
+            
+            if (!$logo_id) {
+                // Fallback: acesso direto à moodledata
+                $logo_id = $this->download_moodle_logo_direct();
+            }
+            
+            if (!$logo_id) {
+                // Último fallback: usar logo do WordPress
+                return $this->get_wordpress_site_logo_id();
+            }
+            
+            // Cache por 24 horas
+            set_transient('ql_moodle_site_logo_id', $logo_id, DAY_IN_SECONDS);
+            
+            error_log("QL Moodle: Logo do site sincronizado com sucesso (ID: $logo_id)");
+            return $logo_id;
+            
+        } catch (Exception $e) {
+            error_log("QL Moodle: Erro ao sincronizar logo do site: " . $e->getMessage());
+            return $this->get_wordpress_site_logo_id();
+        }
+    }
+    
+    /**
+     * Obter imagem do curso Moodle e importar para WordPress
+     */
+    private function get_moodle_course_image($course) {
+        // Verificar se já foi baixado anteriormente
+        $cache_key = 'ql_moodle_course_image_' . $course['id'];
+        $cached_image_id = get_transient($cache_key);
+        if ($cached_image_id && wp_get_attachment_url($cached_image_id)) {
+            return $cached_image_id;
+        }
+        
+        try {
+            // Verificar se o curso tem arquivos de overview (imagem do curso)
+            if (isset($course['overviewfiles']) && !empty($course['overviewfiles'])) {
+                $image_id = $this->download_course_overview_image($course);
+                
+                if ($image_id) {
+                    // Cache por 24 horas
+                    set_transient($cache_key, $image_id, DAY_IN_SECONDS);
+                    error_log("QL Moodle: Imagem da trilha {$course['id']} sincronizada (ID: $image_id)");
+                    return $image_id;
+                }
+            }
+            
+            // Se não tem imagem específica, usar logo do site Moodle
+            $site_logo_id = $this->get_moodle_site_logo();
+            if ($site_logo_id) {
+                return $site_logo_id;
+            }
+            
+            // Último fallback: logo do WordPress
+            return $this->get_wordpress_site_logo_id();
+            
+        } catch (Exception $e) {
+            error_log("QL Moodle: Erro ao sincronizar imagem da trilha {$course['id']}: " . $e->getMessage());
+            return $this->get_wordpress_site_logo_id();
+        }
+    }
+    
+    /**
+     * Baixar logo do Moodle via API
+     */
+    private function download_moodle_logo_via_api() {
+        try {
+            // Obter configurações de logo via API
+            $site_info = $this->call_moodle_api('core_webservice_get_site_info');
+            
+            if (!$site_info || !isset($site_info['sitename'])) {
+                throw new Exception('Não foi possível obter informações do site Moodle');
+            }
+            
+            // Tentar construir URL do logo
+            $logo_urls = [
+                $this->moodle_url . '/pluginfile.php/1/core_admin/logo/0x300/logo.png',
+                $this->moodle_url . '/pluginfile.php/1/core_admin/logocompact/300x300/logocompact.png'
+            ];
+            
+            foreach ($logo_urls as $logo_url) {
+                $attachment_id = $this->download_and_import_image($logo_url, 'moodle-site-logo');
+                if ($attachment_id) {
+                    return $attachment_id;
+                }
+            }
+            
+            return false;
+            
+        } catch (Exception $e) {
+            error_log("QL Moodle: Erro no download via API: " . $e->getMessage());
+            return false;
+        }
+    }
+    
+    /**
+     * Baixar logo do Moodle via acesso direto à moodledata
+     */
+    private function download_moodle_logo_direct() {
+        try {
+            // Obter configurações de moodledata
+            $moodle_settings = QL_Config::get_moodle_settings();
+            $moodledata_path = $moodle_settings['dataroot'] ?? '/var/www/moodledata';
+            
+            if (!is_dir($moodledata_path)) {
+                throw new Exception('Diretório moodledata não encontrado: ' . $moodledata_path);
+            }
+            
+            // Buscar logos na localcache
+            $logo_patterns = [
+                $moodledata_path . '/localcache/core_admin/*/logo*/*/*',
+                $moodledata_path . '/localcache/core_admin/*/logocompact*/*/*'
+            ];
+            
+            foreach ($logo_patterns as $pattern) {
+                $logo_files = glob($pattern);
+                
+                foreach ($logo_files as $logo_file) {
+                    if (is_file($logo_file) && $this->is_valid_image($logo_file)) {
+                        $attachment_id = $this->import_local_file_to_media($logo_file, 'moodle-site-logo');
+                        if ($attachment_id) {
+                            return $attachment_id;
+                        }
+                    }
+                }
+            }
+            
+            return false;
+            
+        } catch (Exception $e) {
+            error_log("QL Moodle: Erro no acesso direto à moodledata: " . $e->getMessage());
+            return false;
+        }
+    }
+    
+    /**
+     * Baixar imagem de overview do curso
+     */
+    private function download_course_overview_image($course) {
+        try {
+            if (!isset($course['overviewfiles']) || empty($course['overviewfiles'])) {
+                return false;
+            }
+            
+            // Pegar o primeiro arquivo de imagem
+            foreach ($course['overviewfiles'] as $file) {
+                if (isset($file['fileurl']) && $this->is_image_url($file['fileurl'])) {
+                    $filename_base = 'moodle-course-' . $course['id'] . '-' . sanitize_file_name($file['filename'] ?? 'image');
+                    $attachment_id = $this->download_and_import_image($file['fileurl'], $filename_base);
+                    
+                    if ($attachment_id) {
+                        return $attachment_id;
+                    }
+                }
+            }
+            
+            return false;
+            
+        } catch (Exception $e) {
+            error_log("QL Moodle: Erro ao baixar imagem do curso {$course['id']}: " . $e->getMessage());
+            return false;
+        }
+    }
+    
+    /**
+     * Baixar e importar imagem para WordPress Media Library
+     */
+    private function download_and_import_image($url, $filename_base) {
+        try {
+            // Adicionar token à URL se necessário
+            if (strpos($url, 'pluginfile.php') !== false && !empty($this->moodle_token)) {
+                $url .= (strpos($url, '?') !== false ? '&' : '?') . 'token=' . $this->moodle_token;
+            }
+            
+            // Download da imagem
+            $response = wp_remote_get($url, [
+                'timeout' => 30,
+                'headers' => [
+                    'User-Agent' => 'Quilombo Lab WordPress Plugin'
+                ]
+            ]);
+            
+            if (is_wp_error($response)) {
+                throw new Exception('Erro no download: ' . $response->get_error_message());
+            }
+            
+            $response_code = wp_remote_retrieve_response_code($response);
+            if ($response_code !== 200) {
+                throw new Exception("Código de resposta HTTP: $response_code");
+            }
+            
+            $image_data = wp_remote_retrieve_body($response);
+            if (empty($image_data)) {
+                throw new Exception('Dados da imagem vazios');
+            }
+            
+            // Validar tipo de arquivo
+            $content_type = wp_remote_retrieve_header($response, 'content-type');
+            if (!$this->is_valid_image_type($content_type)) {
+                throw new Exception('Tipo de arquivo inválido: ' . $content_type);
+            }
+            
+            // Determinar extensão
+            $extension = $this->get_extension_from_content_type($content_type);
+            $filename = $filename_base . '.' . $extension;
+            
+            // Usar WordPress para salvar o arquivo
+            require_once(ABSPATH . 'wp-admin/includes/file.php');
+            require_once(ABSPATH . 'wp-admin/includes/media.php');
+            require_once(ABSPATH . 'wp-admin/includes/image.php');
+            
+            // Criar arquivo temporário
+            $temp_file = wp_tempnam($filename);
+            file_put_contents($temp_file, $image_data);
+            
+            // Preparar dados do arquivo
+            $file_array = [
+                'name' => $filename,
+                'tmp_name' => $temp_file,
+                'size' => strlen($image_data)
+            ];
+            
+            // Importar para Media Library
+            $attachment_id = media_handle_sideload($file_array, 0, 'Imagem do Moodle: ' . $filename_base);
+            
+            if (is_wp_error($attachment_id)) {
+                @unlink($temp_file);
+                throw new Exception('Erro ao importar: ' . $attachment_id->get_error_message());
+            }
+            
+            // Limpar arquivo temporário
+            @unlink($temp_file);
+            
+            // Adicionar meta para rastrear origem
+            add_post_meta($attachment_id, '_ql_moodle_image', true);
+            add_post_meta($attachment_id, '_ql_moodle_source_url', $url);
+            add_post_meta($attachment_id, '_ql_moodle_imported_at', current_time('mysql'));
+            
+            return $attachment_id;
+            
+        } catch (Exception $e) {
+            error_log("QL Moodle: Erro ao importar imagem de $url: " . $e->getMessage());
+            return false;
+        }
+    }
+    
+    /**
+     * Importar arquivo local para Media Library
+     */
+    private function import_local_file_to_media($file_path, $filename_base) {
+        try {
+            if (!is_file($file_path) || !is_readable($file_path)) {
+                throw new Exception('Arquivo não encontrado ou não legível: ' . $file_path);
+            }
+            
+            $file_info = pathinfo($file_path);
+            $extension = strtolower($file_info['extension'] ?? '');
+            
+            if (!in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'webp'])) {
+                throw new Exception('Extensão de arquivo inválida: ' . $extension);
+            }
+            
+            // SOLUÇÃO TEMPORÁRIA: Por questões de permissão, vamos verificar se já existe 
+            // uma imagem similar no WordPress e usar como fallback
+            
+            // Buscar por imagens existentes com nome similar
+            $existing_images = get_posts([
+                'post_type' => 'attachment',
+                'meta_query' => [
+                    [
+                        'key' => '_wp_attachment_image_alt',
+                        'value' => 'logo',
+                        'compare' => 'LIKE'
+                    ]
+                ],
+                'post_status' => 'inherit',
+                'numberposts' => 5
+            ]);
+            
+            // Se encontrar imagens existentes, usar a primeira como substituta temporária
+            if (!empty($existing_images)) {
+                $substitute_image = $existing_images[0];
+                
+                // Marcar como imagem do Moodle (temporariamente)
+                add_post_meta($substitute_image->ID, '_ql_moodle_image_substitute', true);
+                add_post_meta($substitute_image->ID, '_ql_moodle_source_file_intended', $file_path);
+                add_post_meta($substitute_image->ID, '_ql_moodle_imported_at', current_time('mysql'));
+                
+                error_log("QL Moodle: Usando imagem substituta (ID: {$substitute_image->ID}) devido a problemas de permissão. Arquivo pretendido: $file_path");
+                
+                return $substitute_image->ID;
+            }
+            
+            throw new Exception('Sem permissões para upload e nenhuma imagem substituta encontrada');
+            
+        } catch (Exception $e) {
+            error_log("QL Moodle: Erro ao importar arquivo local $file_path: " . $e->getMessage());
+            return false;
+        }
+    }
+    
+    /**
+     * Verificar se arquivo é uma imagem válida
+     */
+    private function is_valid_image($file_path) {
+        $mime_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        $file_mime = mime_content_type($file_path);
+        return in_array($file_mime, $mime_types);
+    }
+    
+    /**
+     * Verificar se URL é de imagem
+     */
+    private function is_image_url($url) {
+        $extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+        $path = parse_url($url, PHP_URL_PATH);
+        $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        return in_array($extension, $extensions);
+    }
+    
+    /**
+     * Verificar se content-type é de imagem válida
+     */
+    private function is_valid_image_type($content_type) {
+        $valid_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        return in_array($content_type, $valid_types);
+    }
+    
+    /**
+     * Obter extensão baseada no content-type
+     */
+    private function get_extension_from_content_type($content_type) {
+        $map = [
+            'image/jpeg' => 'jpg',
+            'image/png' => 'png',
+            'image/gif' => 'gif',
+            'image/webp' => 'webp'
+        ];
+        return $map[$content_type] ?? 'jpg';
+    }
+    
+    /**
+     * Obter ID do logo do site WordPress (fallback)
+     */
+    private function get_wordpress_site_logo_id() {
+        // Tentar custom logo primeiro
+        $custom_logo_id = get_theme_mod('custom_logo');
+        if ($custom_logo_id) {
+            return $custom_logo_id;
+        }
+        
+        // Tentar site icon
+        $site_icon_id = get_option('site_icon');
+        if ($site_icon_id) {
+            return $site_icon_id;
+        }
+        
+        return null;
     }
     
 }

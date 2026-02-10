@@ -328,22 +328,32 @@ class QL_User_Sync {
             );
             
             // Buscar usuários do Moodle que não estão no WordPress
-            // Excluir usuário guest e focar em usuários reais
+            // Incluir usuários não confirmados (confirmed = 0) pois podem ter sido criados via SAML/SSO
             $stmt = $moodle_db->prepare("
-                SELECT id, username, firstname, lastname, email, timecreated, timemodified
-                FROM mdl_user 
-                WHERE deleted = 0 AND confirmed = 1 
-                  AND email != '' 
+                SELECT id, username, firstname, lastname, email, confirmed, deleted, suspended, timecreated, timemodified
+                FROM mdl_user
+                WHERE deleted = 0
+                  AND suspended = 0
+                  AND email != ''
+                  AND email IS NOT NULL
                   AND username != 'guest'
                   AND id > 1
                 ORDER BY timecreated DESC
             ");
+
+            // Log para diagnóstico
             $stmt->execute();
             $moodle_users = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            
+
+            // Log de diagnóstico
+            error_log("QL User Import: Encontrados " . count($moodle_users) . " usuários no Moodle para importação");
+            foreach ($moodle_users as $idx => $u) {
+                error_log("QL User Import: [{$idx}] ID={$u['id']}, username={$u['username']}, email={$u['email']}, confirmed={$u['confirmed']}");
+            }
+
             $imported = 0;
             $skipped = 0;
-            
+
             foreach ($moodle_users as $moodle_user) {
                 // Verificar se já existe no WordPress
                 $wp_user = get_user_by('email', $moodle_user['email']);

@@ -367,11 +367,12 @@
                     }
                 });
             });
-        },
+        }
+    };
         
-        // Limpar tarefas de exemplo
-        clearExampleTasks: function(button) {
-            var self = this;
+    // Limpar tarefas de exemplo
+    QLAdmin.clearExampleTasks = function(button) {
+            var self = QLAdmin;
             
             if (!confirm('⚠️ Isso irá remover todas as tarefas de exemplo do sistema. Tem certeza que deseja continuar?')) {
                 return;
@@ -412,8 +413,7 @@
                     self.showNotification(error, 'error');
                 }
             });
-        }
-    };
+        };
 
     // Função para abrir o Kanban Board
     window.qlOpenKanbanBoard = function(boardId) {
